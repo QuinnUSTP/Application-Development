@@ -1,0 +1,209 @@
+/**
+ * User Controller
+ * Handles user authentication and management
+ */
+
+const User = require('../models/User');
+const jwt = require('jsonwebtoken');
+
+// Generate JWT token
+const generateToken = (id) => {
+  return jwt.sign({ id }, process.env.JWT_SECRET || 'your_secret_key', {
+    expiresIn: '30d',
+  });
+};
+
+// Register user
+exports.registerUser = async (req, res) => {
+  try {
+    const { username, email, password } = req.body;
+    
+    // Check if user already exists
+    let user = await User.findOne({ $or: [{ email }, { username }] });
+    if (user) {
+      return res.status(400).json({
+        success: false,
+        message: 'User already exists',
+      });
+    }
+    
+    // Create user
+    user = await User.create({
+      username,
+      email,
+      password,
+    });
+    
+    const token = generateToken(user._id);
+    
+    res.status(201).json({
+      success: true,
+      token,
+      user: {
+        id: user._id,
+        username: user.username,
+        email: user.email,
+        role: user.role,
+      },
+    });
+  } catch (error) {
+    res.status(400).json({
+      success: false,
+      message: error.message,
+    });
+  }
+};
+
+// Login user
+exports.loginUser = async (req, res) => {
+  try {
+    const { username, password } = req.body;
+    
+    if (!username || !password) {
+      return res.status(400).json({
+        success: false,
+        message: 'Please provide username and password',
+      });
+    }
+    
+    // Check for user
+    const user = await User.findOne({ username }).select('+password');
+    if (!user) {
+      return res.status(401).json({
+        success: false,
+        message: 'Invalid credentials',
+      });
+    }
+    
+    // Check password match
+    const isMatch = await user.matchPassword(password);
+    if (!isMatch) {
+      return res.status(401).json({
+        success: false,
+        message: 'Invalid credentials',
+      });
+    }
+    
+    const token = generateToken(user._id);
+    
+    res.status(200).json({
+      success: true,
+      token,
+      user: {
+        id: user._id,
+        username: user.username,
+        email: user.email,
+        role: user.role,
+      },
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: error.message,
+    });
+  }
+};
+
+// Get user profile
+exports.getUserProfile = async (req, res) => {
+  try {
+    const user = await User.findById(req.user.id);
+    
+    res.status(200).json({
+      success: true,
+      data: user,
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: error.message,
+    });
+  }
+};
+
+// Get all users (admin only)
+exports.getAllUsers = async (req, res) => {
+  try {
+    const users = await User.find().select('-password');
+    
+    res.status(200).json({
+      success: true,
+      count: users.length,
+      data: users,
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: error.message,
+    });
+  }
+};
+
+// Promote user to admin (admin only)
+exports.promoteToAdmin = async (req, res) => {
+  try {
+    const { id } = req.params;
+    
+    const user = await User.findByIdAndUpdate(
+      id,
+      { role: 'admin' },
+      { new: true }
+    );
+    
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: 'User not found',
+      });
+    }
+    
+    res.status(200).json({
+      success: true,
+      message: 'User promoted to admin',
+      data: user,
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: error.message,
+    });
+  }
+};
+
+// Change password
+exports.changePassword = async (req, res) => {
+  try {
+    const { currentPassword, newPassword } = req.body;
+    const user = await User.findById(req.user.id).select('+password');
+    
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: 'User not found',
+      });
+    }
+    
+    // Verify current password
+    const isMatch = await user.matchPassword(currentPassword);
+    if (!isMatch) {
+      return res.status(400).json({
+        success: false,
+        message: 'Current password is incorrect',
+      });
+    }
+    
+    // Update password
+    user.password = newPassword;
+    await user.save();
+    
+    res.status(200).json({
+      success: true,
+      message: 'Password changed successfully',
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: error.message,
+    });
+  }
+};

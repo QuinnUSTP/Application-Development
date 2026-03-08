@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Debug Test</title>
+    <style>
+        body { font-family: Arial; padding: 20px; }
+        .test { padding: 10px; margin: 10px 0; border: 1px solid #ccc; background: #f9f9f9; }
+        .pass { background: #d4edda; border-color: #28a745; color: #155724; }
+        .fail { background: #f8d7da; border-color: #f5c6cb; color: #721c24; }
+    </style>
+</head>
+<body>
+    <h1>RedStore Debugging Test</h1>
+    
+    <div class="test">
+        <strong>Test 1: Check if data files exist</strong>
+        <div id="test1"></div>
+    </div>
+
+    <div class="test">
+        <strong>Test 2: Load products.json</strong>
+        <div id="test2"></div>
+    </div>
+
+    <div class="test">
+        <strong>Test 3: Load categories.json</strong>
+        <div id="test3"></div>
+    </div>
+
+    <div class="test">
+        <strong>Test 4: API Service Test</strong>
+        <div id="test4"></div>
+    </div>
+
+    <div class="test">
+        <strong>Test 5: Cart Manager Test</strong>
+        <div id="test5"></div>
+    </div>
+
+    <script src="js/api.js"></script>
+    <script src="js/cart.js"></script>
+    <script src="js/ui-utils.js"></script>
+
+    <script>
+        const log = (testId, message, isPass = true) => {
+            const el = document.getElementById(testId);
+            const div = document.createElement('div');
+            div.className = isPass ? 'pass' : 'fail';
+            div.textContent = message;
+            el.appendChild(div);
+        };
+
+        (async () => {
+            // Test 1: File paths
+            log('test1', '✓ Current URL: ' + window.location.href, true);
+            
+            // Test 2: Load products
+            try {
+                const products = await apiService.getProducts();
+                if (products.length > 0) {
+                    log('test2', `✓ Loaded ${products.length} products successfully`, true);
+                    products.forEach(p => {
+                        log('test2', `  - ${p.name} ($${p.price})`, true);
+                    });
+                } else {
+                    log('test2', '✗ No products loaded', false);
+                }
+            } catch (e) {
+                log('test2', '✗ Error: ' + e.message, false);
+            }
+
+            // Test 3: Load categories
+            try {
+                const categories = await apiService.getCategories();
+                if (categories.length > 0) {
+                    log('test3', `✓ Loaded ${categories.length} categories successfully`, true);
+                    categories.forEach(c => {
+                        log('test3', `  - ${c.name}`, true);
+                    });
+                } else {
+                    log('test3', '✗ No categories loaded', false);
+                }
+            } catch (e) {
+                log('test3', '✗ Error: ' + e.message, false);
+            }
+
+            // Test 4: API Service
+            try {
+                const product = await apiService.getProduct(1);
+                if (product) {
+                    log('test4', `✓ Got product: ${product.name}`, true);
+                } else {
+                    log('test4', '✗ Could not get product by ID', false);
+                }
+            } catch (e) {
+                log('test4', '✗ Error: ' + e.message, false);
+            }
+
+            // Test 5: Cart Manager
+            try {
+                const initialCount = cartManager.getItemCount();
+                log('test5', `✓ Cart Manager working (${initialCount} items)`, true);
+                
+                cartManager.addItem({ id: 1, name: 'Test', price: 10 }, 1);
+                log('test5', `✓ Added item (now ${cartManager.getItemCount()} items)`, true);
+                
+                log('test5', `✓ Cart total: ${UIUtils.formatPrice(cartManager.getTotal())}`, true);
+            } catch (e) {
+                log('test5', '✗ Error: ' + e.message, false);
+            }
+        })();
+    </script>
+</body>
+</html>

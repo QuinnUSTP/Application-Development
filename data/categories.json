@@ -1,0 +1,17 @@
+[
+  {
+    "id": 1,
+    "name": "Clothing",
+    "image": "images/category-1.jpg"
+  },
+  {
+    "id": 2,
+    "name": "Accessories",
+    "image": "images/category-2.jpg"
+  },
+  {
+    "id": 3,
+    "name": "Footwear",
+    "image": "images/category-3.jpg"
+  }
+]

@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>API Test</title>
+</head>
+<body>
+    <h1>Backend API Test</h1>
+    <div id="results"></div>
+
+    <script>
+        async function testAPI() {
+            const results = document.getElementById('results');
+            
+            try {
+                // Test health
+                results.innerHTML += '<p><strong>Testing Health...</strong></p>';
+                let response = await fetch('http://localhost:5000/api/health');
+                let data = await response.json();
+                results.innerHTML += '<p>✅ Health: ' + JSON.stringify(data) + '</p>';
+                
+                // Test products
+                results.innerHTML += '<p><strong>Testing Products...</strong></p>';
+                response = await fetch('http://localhost:5000/api/products');
+                data = await response.json();
+                results.innerHTML += '<p>✅ Products Response Structure:</p>';
+                results.innerHTML += '<pre>' + JSON.stringify(data, null, 2).substring(0, 500) + '...</pre>';
+                
+                if (data.data && data.data.length > 0) {
+                    results.innerHTML += '<p>✅ First Product: ' + JSON.stringify(data.data[0]) + '</p>';
+                } else {
+                    results.innerHTML += '<p>❌ No products in data</p>';
+                }
+                
+            } catch (error) {
+                results.innerHTML += '<p>❌ Error: ' + error.message + '</p>';
+            }
+        }
+        
+        testAPI();
+    </script>
+</body>
+</html>
