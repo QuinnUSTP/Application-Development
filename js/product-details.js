@@ -6,7 +6,7 @@
 let currentProduct = null;
 
 document.addEventListener('DOMContentLoaded', async () => {
-  console.log('Product details page loaded');
+  apiService?.log?.('Product details page loaded');
   await loadProductDetails();
   updateCartCount();
 });
@@ -25,14 +25,14 @@ async function loadProductDetails() {
       return;
     }
     
-    console.log('🛍️ Loading product:', productId);
+  apiService?.log?.('🛍️ Loading product:', productId);
     
     // Fetch product from API
     const product = await apiService.getProduct(productId);
     
     if (!product) {
       console.warn('Product not found with ID:', productId);
-      console.log('Trying to load all products and find by ID...');
+      apiService?.log?.('Trying to load all products and find by ID...');
       
       // Fallback: try to load all products and find the one with matching ID
       const allProducts = await apiService.getProducts();
@@ -44,7 +44,7 @@ async function loadProductDetails() {
       
       if (foundProduct) {
         currentProduct = foundProduct;
-        console.log('✅ Product found in all products list:', foundProduct);
+        apiService?.log?.('✅ Product found in all products list:', foundProduct);
         renderProductDetails(foundProduct);
         return;
       }
@@ -54,7 +54,7 @@ async function loadProductDetails() {
     }
     
     currentProduct = product;
-    console.log('✅ Product loaded:', product);
+  apiService?.log?.('✅ Product loaded:', product);
     renderProductDetails(product);
   } catch (error) {
     console.error('Error loading product:', error);
@@ -68,41 +68,140 @@ async function loadProductDetails() {
 function renderProductDetails(product) {
   // Update title
   document.title = `${product.name} - RedStore`;
-  
-  // Update main image
-  const productImg = document.getElementById('ProductImg');
-  if (productImg) {
-    productImg.src = product.image;
-    productImg.alt = product.name;
+  setPrimaryImage(product);
+  setGalleryForProduct(product);
+  setProductInfo(product);
+  loadRelatedProducts(product);
+}
+
+/**
+ * Load and render related products
+ * - Prefer same category
+ * - Exclude current product
+ * - Render up to 4 items
+ */
+async function loadRelatedProducts(product) {
+  const relatedContainer = document.getElementById('relatedProducts');
+  if (!relatedContainer) return;
+
+  try {
+    const response = await apiService.getProducts();
+    const products = Array.isArray(response) ? response : (response?.data || []);
+
+    const currentId = String(product._id || product.id);
+    const category = product.category;
+
+    const sameCategory = products.filter(p =>
+      String(p._id || p.id) !== currentId &&
+      (category ? String(p.category) === String(category) : true)
+    );
+
+    const otherCategory = products.filter(p =>
+      String(p._id || p.id) !== currentId &&
+      (category ? String(p.category) !== String(category) : true)
+    );
+
+    // Fill up to 4: prefer same category, then top up from others.
+    const related = [...sameCategory.slice(0, 4)];
+    if (related.length < 4) {
+      related.push(...otherCategory.slice(0, 4 - related.length));
+    }
+
+    if (related.length === 0) {
+      relatedContainer.innerHTML = '';
+      return;
+    }
+
+    // Keep the same visual grid; cards include clickable image + name.
+    relatedContainer.innerHTML = related.map(p => UIUtils.renderProductCard(p)).join('');
+  } catch (e) {
+    console.error('Error loading related products:', e);
   }
-  
-  // Update product info
-  const productCol = document.querySelector('.col-2:last-of-type');
-  if (productCol) {
-    const stars = UIUtils.renderStars(product.rating);
-    
-    productCol.innerHTML = `
-      <p>Home / ${product.category}</p>
-      <h1>${product.name}</h1>
-      <h4>${UIUtils.formatPrice(product.price)}</h4>
-      <div class="rating">
-        ${stars}
-        <span>(${product.rating} / 5)</span>
+}
+
+function isRedPrintedTShirt(product) {
+  const text = `${product.name || ''} ${product.title || ''}`.toLowerCase();
+  return text.includes('red printed t-shirt');
+}
+
+function setPrimaryImage(product) {
+  const productImg = document.getElementById('ProductImg');
+  if (!productImg) return;
+
+  productImg.src = isRedPrintedTShirt(product)
+    ? 'images/gallery-1.jpg'
+    : (product.image || 'images/image-placeholder.png');
+  productImg.alt = product.name || 'Product image';
+}
+
+function setGalleryForProduct(product) {
+  const gallery = document.querySelector('.small-img-row');
+  if (!gallery) return;
+
+  if (isRedPrintedTShirt(product)) {
+    gallery.style.display = '';
+    gallery.innerHTML = `
+      <div class="small-img-col">
+        <img src="images/gallery-1.jpg" width="100%" class="small-img">
       </div>
-      <div style="margin: 20px 0;">
-        <label>Quantity:</label>
-        <input type="number" id="quantityInput" value="1" min="1" max="${product.stock}">
-        <span style="margin-left: 10px; color: ${product.stock > 0 ? '#4CAF50' : '#dc3545'};">
-          ${product.stock > 0 ? `${product.stock} in stock` : 'Out of stock'}
-        </span>
+      <div class="small-img-col">
+        <img src="images/gallery-2.jpg" width="100%" class="small-img">
       </div>
-      <button class="btn" onclick="addToCart()" ${product.stock === 0 ? 'disabled' : ''}>
-        Add To Cart
-      </button>
-      <h3>Product Details <i class="fa fa-indent"></i></h3>
-      <br>
-      <p>${product.description}</p>
+      <div class="small-img-col">
+        <img src="images/gallery-3.jpg" width="100%" class="small-img">
+      </div>
+      <div class="small-img-col">
+        <img src="images/gallery-4.jpg" width="100%" class="small-img">
+      </div>
     `;
+
+    bindGalleryClicks();
+  } else {
+    gallery.style.display = 'none';
+    gallery.innerHTML = '';
+  }
+}
+
+function setProductInfo(product) {
+  const productCol = document.querySelector('.col-2:last-of-type');
+  if (!productCol) return;
+
+  const stars = UIUtils.renderStars(product.rating);
+
+  productCol.innerHTML = `
+    <p>Home / ${product.category}</p>
+    <h1>${product.name}</h1>
+    <h4>${UIUtils.formatPrice(product.price)}</h4>
+    <div class="rating">
+      ${stars}
+      <span>(${product.rating} / 5)</span>
+    </div>
+    <div style="margin: 20px 0;">
+      <label>Quantity:</label>
+      <input type="number" id="quantityInput" value="1" min="1" max="${product.stock}">
+      <span style="margin-left: 10px; color: ${product.stock > 0 ? '#4CAF50' : '#dc3545'};">
+        ${product.stock > 0 ? `${product.stock} in stock` : 'Out of stock'}
+      </span>
+    </div>
+    <button class="btn" onclick="addToCart()" ${product.stock === 0 ? 'disabled' : ''}>
+      Add To Cart
+    </button>
+    <h3>Product Details <i class="fa fa-indent"></i></h3>
+    <br>
+    <p>${product.description}</p>
+  `;
+}
+
+function bindGalleryClicks() {
+  const productImg = document.getElementById('ProductImg');
+  const smallImgs = document.getElementsByClassName('small-img');
+
+  for (let i = 0; i < smallImgs.length; i++) {
+    smallImgs[i].onclick = function() {
+      if (productImg) {
+        productImg.src = smallImgs[i].src;
+      }
+    };
   }
 }
 
@@ -126,7 +225,7 @@ function addToCart() {
   // Prepare product data for cart (include _id for backend)
   const cartProduct = {
     ...currentProduct,
-    cartId: currentProduct._id || currentProduct.id, // Use MongoDB _id if available, fallback to id
+    cartId: String(currentProduct._id || currentProduct.id), // stable cart key
   };
   
   // Add to cart

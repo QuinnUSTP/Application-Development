@@ -8,6 +8,15 @@ class APIService {
   constructor(baseUrl = '') {
     this.baseUrl = baseUrl;
     this.token = this.getStoredToken();
+    this.debug = false;
+  }
+
+  setDebug(enabled) {
+    this.debug = !!enabled;
+  }
+
+  log(...args) {
+    if (this.debug) console.log(...args);
   }
 
   /**
@@ -17,7 +26,7 @@ class APIService {
     if (token) {
       this.token = token;
       localStorage.setItem('auth_token', token);
-      console.log('✅ Token stored');
+      this.log('✅ Token stored');
     }
   }
 
@@ -35,7 +44,7 @@ class APIService {
     this.token = null;
     localStorage.removeItem('auth_token');
     localStorage.removeItem('user_data');
-    console.log('✅ Token cleared');
+    this.log('✅ Token cleared');
   }
 
   /**
@@ -49,6 +58,40 @@ class APIService {
       headers['Authorization'] = `Bearer ${this.token}`;
     }
     return headers;
+  }
+
+  async request(path, { method = 'GET', headers, body, timeoutMs = 8000 } = {}) {
+    if (!this.baseUrl) {
+      throw new Error('Backend not configured');
+    }
+
+    // Refresh token (login can happen without reload)
+    this.token = this.getStoredToken();
+
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), timeoutMs);
+    try {
+      const res = await fetch(`${this.baseUrl}${path}`, {
+        method,
+        headers: headers || this.getAuthHeaders(),
+        body,
+        signal: controller.signal,
+      });
+
+      const json = await res.json().catch(() => null);
+      if (!res.ok) {
+        const msg = json?.message || `Request failed (HTTP ${res.status})`;
+        throw new Error(msg);
+      }
+      return json;
+    } catch (e) {
+      if (e?.name === 'AbortError') {
+        throw new Error('Request timed out');
+      }
+      throw e;
+    } finally {
+      clearTimeout(timer);
+    }
   }
 
   /**
@@ -65,22 +108,28 @@ class APIService {
           if (filters[key]) url.searchParams.append(key, filters[key]);
         });
         
-        console.log('Fetching products from backend:', url.toString());
-        const response = await fetch(url.toString(), {
-          method: 'GET',
-          headers: this.getAuthHeaders(),
-          timeout: 3000,
-        });
+        this.log('Fetching products from backend:', url.toString());
+        const controller = new AbortController();
+        const timer = setTimeout(() => controller.abort(), 8000);
+        try {
+          const response = await fetch(url.toString(), {
+            method: 'GET',
+            headers: this.getAuthHeaders(),
+            signal: controller.signal,
+          });
 
-        if (response.ok) {
-          const result = await response.json();
-          console.log('✅ Products fetched from backend:', result.data?.length || 0, 'items');
-          return result.data || result;
+          if (response.ok) {
+            const result = await response.json();
+            this.log('Products fetched from backend:', result.data?.length || 0, 'items');
+            return result.data || result;
+          }
+        } finally {
+          clearTimeout(timer);
         }
       }
 
       // Fallback to JSON file if backend unavailable
-      console.log('⚠️ Backend unavailable, loading from JSON file...');
+  this.log('Backend unavailable, loading from JSON file...');
       const products = await this.loadProductsFromJSON();
       
       // Apply filters to JSON data
@@ -107,7 +156,7 @@ class APIService {
         }
       }
       
-      console.log('✅ Loaded', filtered.length, 'products from JSON');
+      this.log('Loaded', filtered.length, 'products from JSON');
       return filtered;
     } catch (error) {
       console.error('Error fetching products:', error);
@@ -135,11 +184,11 @@ class APIService {
     
     for (let path of paths) {
       try {
-        console.log('Trying to load from:', path);
+        this.log('Trying to load from:', path);
         const response = await fetch(path);
         if (response.ok) {
           const products = await response.json();
-          console.log('✅ Loaded products from:', path);
+          this.log('✅ Loaded products from:', path);
           return Array.isArray(products) ? products : [];
         }
       } catch (e) {
@@ -159,23 +208,27 @@ class APIService {
     try {
       // Try backend first if available
       if (this.baseUrl) {
-        const response = await fetch(`${this.baseUrl}/products/${productId}`, {
-          method: 'GET',
-          headers: this.getAuthHeaders(),
-          timeout: 3000,
-        });
+        const controller = new AbortController();
+        const timer = setTimeout(() => controller.abort(), 8000);
+        try {
+          const response = await fetch(`${this.baseUrl}/products/${productId}`, {
+            method: 'GET',
+            headers: this.getAuthHeaders(),
+            signal: controller.signal,
+          });
 
-        if (response.ok) {
-          const result = await response.json();
-          console.log('✅ Product fetched from backend:', result.data?.name || result.name || 'Unknown');
-          return result.data || result;
-        } else {
-          console.log('⚠️ Backend product endpoint returned:', response.status);
+          if (response.ok) {
+            const result = await response.json();
+            this.log('Product fetched from backend:', result.data?.name || result.name || 'Unknown');
+            return result.data || result;
+          }
+        } finally {
+          clearTimeout(timer);
         }
       }
 
-      // Fallback to JSON file
-      console.log('⚠️ Falling back to JSON file for product ID:', productId);
+    // Fallback to JSON file
+    this.log('Falling back to JSON file for product ID:', productId);
       const products = await this.loadProductsFromJSON();
       
       // Try multiple ID matching approaches (string, number, MongoDB ObjectId)
@@ -189,16 +242,44 @@ class APIService {
       });
       
       if (product) {
-        console.log('✅ Product found in JSON:', product.name);
-        return product;
+        this.log('Product found in JSON:', product.name);
+        return this.normalizeProduct(product);
       }
       
-      console.warn('❌ Product not found with ID:', productId, 'Available IDs:', products.map(p => p.id));
+      console.warn('Product not found with ID:', productId);
       return null;
     } catch (error) {
       console.error('Error fetching product:', error);
       return null;
     }
+  }
+
+  /**
+   * Normalize a product so the UI can rely on consistent fields.
+   * Keeps the existing UI unchanged, but allows data-driven mapping.
+   */
+  normalizeProduct(product) {
+    const name = String(product.name || '').trim();
+    const lower = name.toLowerCase();
+
+    if (lower.includes('red printed t-shirt')) {
+      return {
+        ...product,
+        name: 'Red Printed T-Shirt',
+        image: 'images/gallery-1.jpg',
+        galleryImages: [
+          'images/gallery-1.jpg',
+          'images/gallery-2.jpg',
+          'images/gallery-3.jpg',
+          'images/gallery-4.jpg',
+        ],
+      };
+    }
+
+    return {
+      ...product,
+      galleryImages: [product.image].filter(Boolean),
+    };
   }
 
   /**
@@ -208,24 +289,11 @@ class APIService {
    */
   async registerUser(userData) {
     try {
-      if (!this.baseUrl) {
-        throw new Error('Backend not configured');
-      }
-
-      const response = await fetch(`${this.baseUrl}/users/register`, {
+      const result = await this.request('/users/register', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(userData),
       });
-
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.message || 'Registration failed');
-      }
-
-      const result = await response.json();
       
       // Store token and user data
       if (result.token) {
@@ -233,7 +301,7 @@ class APIService {
         localStorage.setItem('user_data', JSON.stringify(result.user));
       }
       
-      console.log('✅ User registered:', result.user);
+  this.log('✅ User registered:', result.user);
       return result;
     } catch (error) {
       console.error('Error registering user:', error);
@@ -248,24 +316,11 @@ class APIService {
    */
   async loginUser(credentials) {
     try {
-      if (!this.baseUrl) {
-        throw new Error('Backend not configured');
-      }
-
-      const response = await fetch(`${this.baseUrl}/users/login`, {
+      const result = await this.request('/users/login', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(credentials),
       });
-
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.message || 'Login failed');
-      }
-
-      const result = await response.json();
       
       // Store token and user data
       if (result.token) {
@@ -273,7 +328,7 @@ class APIService {
         localStorage.setItem('user_data', JSON.stringify(result.user));
       }
       
-      console.log('✅ User logged in:', result.user);
+  this.log('✅ User logged in:', result.user);
       return result;
     } catch (error) {
       console.error('Error logging in:', error);
@@ -291,20 +346,8 @@ class APIService {
         throw new Error('Not authenticated');
       }
 
-      const response = await fetch(`${this.baseUrl}/users/profile`, {
-        method: 'GET',
-        headers: {
-          'Authorization': `Bearer ${this.token}`,
-          'Content-Type': 'application/json',
-        },
-      });
-
-      if (!response.ok) {
-        throw new Error('Failed to get profile');
-      }
-
-      const result = await response.json();
-      return result.data;
+      const result = await this.request('/users/profile', { method: 'GET' });
+      return result.data || result;
     } catch (error) {
       console.error('Error getting profile:', error);
       throw error;
@@ -322,56 +365,15 @@ class APIService {
         throw new Error('Not authenticated');
       }
 
-      const response = await fetch(`${this.baseUrl}/users/profile`, {
+      const result = await this.request('/users/profile', {
         method: 'PUT',
-        headers: {
-          'Authorization': `Bearer ${this.token}`,
-          'Content-Type': 'application/json',
-        },
         body: JSON.stringify(userData),
       });
-
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.message || 'Failed to update profile');
-      }
-
-      const result = await response.json();
-      console.log('✅ Profile updated:', result.user);
+      this.log('✅ Profile updated:', result.user);
       return result;
     } catch (error) {
       console.error('Error updating profile:', error);
       throw error;
-    }
-  }
-
-  /**
-   * Get user orders
-   * @returns {Promise<Array>}
-   */
-  async getUserOrders() {
-    try {
-      if (!this.baseUrl || !this.token) {
-        throw new Error('Not authenticated');
-      }
-
-      const response = await fetch(`${this.baseUrl}/orders/user`, {
-        method: 'GET',
-        headers: {
-          'Authorization': `Bearer ${this.token}`,
-          'Content-Type': 'application/json',
-        },
-      });
-
-      if (!response.ok) {
-        throw new Error('Failed to get orders');
-      }
-
-      const result = await response.json();
-      return result.data || [];
-    } catch (error) {
-      console.error('Error getting orders:', error);
-      return [];
     }
   }
 
@@ -386,26 +388,33 @@ class APIService {
         throw new Error('Not authenticated');
       }
 
-      const response = await fetch(`${this.baseUrl}/users/address`, {
+      const result = await this.request('/users/address', {
         method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${this.token}`,
-          'Content-Type': 'application/json',
-        },
         body: JSON.stringify(addressData),
       });
-
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.message || 'Failed to save address');
-      }
-
-      const result = await response.json();
-      console.log('✅ Address saved:', result);
+      this.log('✅ Address saved:', result);
       return result.data;
     } catch (error) {
       console.error('Error saving address:', error);
       throw error;
+    }
+  }
+
+  /**
+   * Get saved shipping address for the current user
+   * @returns {Promise<Object|null>}
+   */
+  async getAddress() {
+    try {
+      if (!this.baseUrl || !this.token) {
+        throw new Error('Not authenticated');
+      }
+
+      const result = await this.request('/users/address', { method: 'GET' });
+      return result.data ?? null;
+    } catch (error) {
+      console.error('Error getting address:', error);
+      return null;
     }
   }
 
@@ -420,22 +429,11 @@ class APIService {
         throw new Error('Not authenticated');
       }
 
-      const response = await fetch(`${this.baseUrl}/users/change-password`, {
+      const result = await this.request('/users/change-password', {
         method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${this.token}`,
-          'Content-Type': 'application/json',
-        },
         body: JSON.stringify(passwordData),
       });
-
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.message || 'Failed to change password');
-      }
-
-      const result = await response.json();
-      console.log('✅ Password changed successfully');
+      this.log('✅ Password changed successfully');
       return result;
     } catch (error) {
       console.error('Error changing password:', error);
@@ -454,19 +452,12 @@ class APIService {
         throw new Error('Not authenticated');
       }
 
-      const response = await fetch(`${this.baseUrl}/orders`, {
+      const result = await this.request('/orders', {
         method: 'POST',
-        headers: this.getAuthHeaders(),
         body: JSON.stringify(orderData),
       });
 
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.message || 'Failed to create order');
-      }
-
-      const result = await response.json();
-      console.log('✅ Order created:', result.data._id);
+      this.log('Order created:', result?.data?._id);
       return result.data;
     } catch (error) {
       console.error('Error creating order:', error);
@@ -484,20 +475,11 @@ class APIService {
         throw new Error('Not authenticated');
       }
 
-      const response = await fetch(`${this.baseUrl}/orders`, {
-        method: 'GET',
-        headers: this.getAuthHeaders(),
-      });
-
-      if (!response.ok) {
-        throw new Error('Failed to fetch orders');
-      }
-
-      const result = await response.json();
-      return result.data || [];
+      const result = await this.request('/orders', { method: 'GET' });
+      return result?.data || [];
     } catch (error) {
       console.error('Error fetching orders:', error);
-      return [];
+      throw error;
     }
   }
 
@@ -512,17 +494,8 @@ class APIService {
         throw new Error('Not authenticated');
       }
 
-      const response = await fetch(`${this.baseUrl}/orders/${orderId}`, {
-        method: 'GET',
-        headers: this.getAuthHeaders(),
-      });
-
-      if (!response.ok) {
-        throw new Error('Order not found');
-      }
-
-      const result = await response.json();
-      return result.data;
+      const result = await this.request(`/orders/${orderId}`, { method: 'GET' });
+      return result.data || result;
     } catch (error) {
       console.error('Error fetching order:', error);
       return null;
@@ -534,23 +507,8 @@ class APIService {
 const backendUrl = 'http://localhost:5000/api';
 const apiService = new APIService(backendUrl);
 
-// Test if backend is available and provide fallback
-(async () => {
-  try {
-    console.log('🔍 Testing backend connection at', backendUrl);
-    const response = await fetch(backendUrl + '/health', { 
-      method: 'GET',
-      mode: 'cors'
-    });
-    if (response.ok) {
-      const data = await response.json();
-      console.log('✅ Backend API is available at', backendUrl);
-      console.log('   Message:', data.message);
-    } else {
-      console.warn('⚠️ Backend health check failed, will use JSON fallback');
-    }
-  } catch (e) {
-    console.warn('⚠️ Backend not available, using JSON fallback:', e.message);
-    console.log('   Make sure MongoDB is running and the backend server is started');
-  }
-})();
+// Optional debug: enable verbose API logs via localStorage key.
+// localStorage.setItem('redstore_debug', '1')
+try {
+  apiService.setDebug(localStorage.getItem('redstore_debug') === '1');
+} catch {}

@@ -1,0 +1,30 @@
+{
+  "kind": "redstore-receipt",
+  "version": 1,
+  "orderId": "69c19ed137f4db470cbf7cfa",
+  "user": {
+    "id": "69c19ed137f4db470cbf7cf4",
+    "username": "user_24b637e8",
+    "role": "user"
+  },
+  "createdAt": "2026-03-23T20:13:05.954Z",
+  "updatedAt": "2026-03-23T20:13:05.954Z",
+  "status": "pending",
+  "paymentMethod": "credit_card",
+  "totalAmount": 97.74999999999999,
+  "shippingAddress": {
+    "street": "Test St",
+    "city": "Test City",
+    "state": "Test State",
+    "zip": "0000",
+    "country": "Test Country"
+  },
+  "items": [
+    {
+      "product": "69c17cf43b803692334a1ff5",
+      "name": "Roadster Watch",
+      "quantity": 1,
+      "price": 85
+    }
+  ]
+}

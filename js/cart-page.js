@@ -4,7 +4,7 @@
  */
 
 document.addEventListener('DOMContentLoaded', () => {
-  console.log('Cart page loaded');
+  apiService?.log?.('Cart page loaded');
   renderCart();
   updateCartCount();
 });
@@ -14,7 +14,7 @@ document.addEventListener('DOMContentLoaded', () => {
  */
 function renderCart() {
   const cartItems = cartManager.getItems();
-  console.log('Cart items:', cartItems);
+  apiService?.log?.('Cart items:', cartItems);
   const tbody = document.querySelector('#cartTable tbody');
   
   if (cartItems.length === 0) {
@@ -111,6 +111,14 @@ async function checkout() {
     const tax = subtotal * 0.15;
     const totalAmount = subtotal + tax;
     
+    // Load saved shipping address (from Account page)
+    let savedAddress = null;
+    try {
+      savedAddress = JSON.parse(localStorage.getItem('redstore_address'));
+    } catch (e) {
+      savedAddress = null;
+    }
+
     // Prepare order data
     const orderData = {
       items: cartItems.map(item => ({
@@ -120,22 +128,29 @@ async function checkout() {
       })),
       totalAmount: totalAmount,
       shippingAddress: {
-        street: 'To be entered',
-        city: 'To be entered',
-        state: 'To be entered',
-        zip: 'To be entered',
-        country: 'To be entered',
+        street: savedAddress?.street || 'To be entered',
+        city: savedAddress?.city || 'To be entered',
+        state: savedAddress?.state || 'To be entered',
+        zip: savedAddress?.zip || 'To be entered',
+        country: savedAddress?.country || 'To be entered',
       },
       paymentMethod: 'credit_card',
     };
     
-    console.log('📦 Creating order:', orderData);
+  apiService?.log?.('📦 Creating order:', orderData);
     
     // Create order in database
     const order = await apiService.createOrder(orderData);
     
     if (order && order._id) {
-      console.log('✅ Order created successfully:', order._id);
+      apiService?.log?.('✅ Order created successfully:', order._id);
+
+      // Best-effort: archive receipt JSON on the server (writes to Appdev/Receipts)
+      try {
+        await apiService.request(`/orders/${order._id}/receipt/archive`, { method: 'POST' });
+      } catch (e) {
+        console.warn('⚠️ Receipt archive failed (continuing):', e?.message);
+      }
       
       // Clear cart
       cartManager.clearCart();

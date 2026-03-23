@@ -1,0 +1,36 @@
+{
+  "kind": "redstore-receipt",
+  "version": 1,
+  "orderId": "69c1825ae2de9ce75d7c8857",
+  "user": {
+    "id": "69c17872d6fea51665fb1249",
+    "username": "admin",
+    "role": "admin"
+  },
+  "createdAt": "2026-03-23T18:11:38.623Z",
+  "updatedAt": "2026-03-23T18:11:38.623Z",
+  "status": "pending",
+  "paymentMethod": "credit_card",
+  "totalAmount": 235.75,
+  "shippingAddress": {
+    "street": "To be entered",
+    "city": "To be entered",
+    "state": "To be entered",
+    "zip": "To be entered",
+    "country": "To be entered"
+  },
+  "items": [
+    {
+      "product": "69c17cf43b803692334a1ff5",
+      "name": "Roadster Watch",
+      "quantity": 2,
+      "price": 85
+    },
+    {
+      "product": "69c17cf43b803692334a1ff3",
+      "name": "Cogon Rated Socks",
+      "quantity": 1,
+      "price": 35
+    }
+  ]
+}

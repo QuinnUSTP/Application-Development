@@ -1,0 +1,30 @@
+{
+  "kind": "redstore-receipt",
+  "version": 1,
+  "orderId": "69c18bfa6de360f71c1d32a3",
+  "user": {
+    "id": "69ad4c7574917ea2a3791280",
+    "username": "Nardandersen",
+    "role": "user"
+  },
+  "createdAt": "2026-03-23T18:52:42.731Z",
+  "updatedAt": "2026-03-23T18:52:42.731Z",
+  "status": "pending",
+  "paymentMethod": "credit_card",
+  "totalAmount": 40.25,
+  "shippingAddress": {
+    "street": "Mambuaya",
+    "city": "Cagayan de oro",
+    "state": "Misamis Oriental",
+    "zip": "9000",
+    "country": "Phillippines"
+  },
+  "items": [
+    {
+      "product": "69c17cf43b803692334a1ff3",
+      "name": "Cogon Rated Socks",
+      "quantity": 1,
+      "price": 35
+    }
+  ]
+}

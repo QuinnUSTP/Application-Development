@@ -37,6 +37,11 @@ nav ul li {
     margin-right: 20px;
 }
 
+nav ul li a.nav-active {
+    color: var(--highlight-color);
+    font-weight: 600;
+}
+
 .navbar > a {
     position: relative;
     display: inline-block;
@@ -109,6 +114,17 @@ p {
 
 .btn:hover {
     background: var(--dark-highlight-color);
+}
+
+.btn-outline {
+    background: transparent;
+    border: 1px solid var(--highlight-color);
+    color: var(--highlight-color);
+}
+
+.btn-outline:hover {
+    background: var(--highlight-color);
+    color: #fff;
 }
 
 .btn-add-cart {
@@ -186,6 +202,45 @@ p {
 
 .col-3 img {
     width: 100%;
+}
+
+.about-hero {
+    padding-top: 50px;
+    padding-bottom: 30px;
+}
+
+.about-actions {
+    display: flex;
+    gap: 12px;
+    flex-wrap: wrap;
+}
+
+.about-values {
+    padding-top: 10px;
+    padding-bottom: 40px;
+}
+
+.about-card {
+    text-align: center;
+    padding: 24px;
+    border-radius: 12px;
+    background: #fff;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.06);
+}
+
+.about-card i {
+    font-size: 36px;
+    color: var(--highlight-color);
+    margin-bottom: 16px;
+}
+
+.footer-col-3 a,
+.footer-col-3 a:visited {
+    color: var(--text-color);
+}
+
+.footer-col-3 a:hover {
+    color: var(--highlight-color);
 }
 
 .small-container {

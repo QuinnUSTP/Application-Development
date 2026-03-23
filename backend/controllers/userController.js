@@ -207,3 +207,61 @@ exports.changePassword = async (req, res) => {
     });
   }
 };
+
+// Get user shipping address
+exports.getUserAddress = async (req, res) => {
+  try {
+    const user = await User.findById(req.user.id).select('shippingAddress');
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: 'User not found',
+      });
+    }
+
+    res.status(200).json({
+      success: true,
+      data: user.shippingAddress || null,
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: error.message,
+    });
+  }
+};
+
+// Save/update user shipping address
+exports.saveUserAddress = async (req, res) => {
+  try {
+    const { name, street, city, state, zip, country } = req.body || {};
+
+    if (!name || !street || !city || !state || !zip || !country) {
+      return res.status(400).json({
+        success: false,
+        message: 'Please provide name, street, city, state, zip, and country',
+      });
+    }
+
+    const user = await User.findById(req.user.id);
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: 'User not found',
+      });
+    }
+
+    user.shippingAddress = { name, street, city, state, zip, country };
+    await user.save();
+
+    res.status(200).json({
+      success: true,
+      data: user.shippingAddress,
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: error.message,
+    });
+  }
+};

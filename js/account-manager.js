@@ -4,12 +4,14 @@
  */
 
 class AccountManager {
+  static addressStorageKey = 'redstore_address';
+  static orderHistoryKey = 'redstore_order_history';
   /**
    * Initialize account page on load
    */
   static initialize() {
     document.addEventListener('DOMContentLoaded', () => {
-      console.log('🔐 AccountManager initialized');
+      apiService?.log?.('🔐 AccountManager initialized');
       this.renderPage();
       this.updateNavBar();
       this.updateCartCount();
@@ -22,12 +24,19 @@ class AccountManager {
   static renderPage() {
     const accountPage = document.getElementById('accountPage');
     const isLoggedIn = AuthManager.isLoggedIn();
+
+    // If the token is missing but we still have cached user_data, it's a stale session.
+    // Clear it so the UI doesn't pretend the user is logged in.
+    if (!isLoggedIn && localStorage.getItem('user_data')) {
+      console.warn('⚠️ Stale session detected (user_data without auth_token). Clearing cached user_data.');
+      localStorage.removeItem('user_data');
+    }
     
     if (isLoggedIn) {
-      console.log('✅ User is logged in - showing dashboard');
+      apiService?.log?.('✅ User is logged in - showing dashboard');
       this.renderDashboard(accountPage);
     } else {
-      console.log('❌ User not logged in - showing login/register forms');
+      apiService?.log?.('❌ User not logged in - showing login/register forms');
       this.renderLoginForms(accountPage);
     }
   }
@@ -56,7 +65,53 @@ class AccountManager {
     
     // Load user data
     this.loadUserData();
+    this.loadAddress();
     this.loadOrders();
+  }
+
+  /**
+   * Load address from localStorage and render it.
+   */
+  static loadAddress() {
+    const addressView = document.getElementById('addressView');
+    if (!addressView) return;
+
+    (async () => {
+      // Prefer backend-persisted address
+      if (window.apiService && typeof apiService.getAddress === 'function' && apiService.getStoredToken()) {
+        const serverAddress = await apiService.getAddress();
+        if (serverAddress) {
+          localStorage.setItem(this.addressStorageKey, JSON.stringify(serverAddress));
+          addressView.innerHTML = `
+            <div class="address-card">
+              <h4>${serverAddress.name || ''}</h4>
+              <p>${serverAddress.street || ''}</p>
+              <p>${serverAddress.city || ''}, ${serverAddress.state || ''} ${serverAddress.zip || ''}</p>
+              <p>${serverAddress.country || ''}</p>
+            </div>
+          `;
+          return;
+        }
+      }
+
+      // Fallback to local cache
+      try {
+        const raw = localStorage.getItem(this.addressStorageKey);
+        if (!raw) return;
+        const address = JSON.parse(raw);
+        if (!address) return;
+        addressView.innerHTML = `
+          <div class="address-card">
+            <h4>${address.name || ''}</h4>
+            <p>${address.street || ''}</p>
+            <p>${address.city || ''}, ${address.state || ''} ${address.zip || ''}</p>
+            <p>${address.country || ''}</p>
+          </div>
+        `;
+      } catch (e) {
+        console.error('Error loading address:', e);
+      }
+    })();
   }
 
   /**
@@ -70,7 +125,7 @@ class AccountManager {
     }
 
     const user = JSON.parse(userData);
-    console.log('📝 Loading user data:', user);
+  apiService?.log?.('📝 Loading user data:', user);
 
     // Update header
     document.getElementById('dashboardUsername').textContent = user.username;
@@ -95,10 +150,17 @@ class AccountManager {
    */
   static async loadOrders() {
     const ordersList = document.getElementById('ordersList');
+    if (!ordersList) return;
     
     try {
-      const orders = await apiService.getUserOrders();
-      console.log('📦 Orders loaded:', orders);
+      // Ensure API token is current (login can happen without reload)
+      if (window.apiService && typeof apiService.getStoredToken === 'function') {
+        apiService.setToken(apiService.getStoredToken());
+      }
+
+      const raw = await apiService.getUserOrders();
+      const orders = Array.isArray(raw) ? raw : (raw?.data || []);
+  apiService?.log?.('📦 Orders loaded:', orders);
 
       if (!orders || orders.length === 0) {
         ordersList.innerHTML = `
@@ -119,12 +181,17 @@ class AccountManager {
             <span class="order-status status-${order.status}">${order.status}</span>
           </div>
           <div class="order-items">
-            ${order.items.map(item => `
+            ${(order.items || []).map(item => {
+              const name = item?.product?.name || item?.name || 'Product';
+              const qty = Number(item?.quantity || 0);
+              const price = Number(item?.price || 0);
+              return `
               <div class="order-item">
-                <span>${item.quantity}x ${item.product.name || 'Product'}</span>
-                <span>${UIUtils.formatPrice(item.price * item.quantity)}</span>
+                <span>${qty}x ${name}</span>
+                <span>${UIUtils.formatPrice(price * qty)}</span>
               </div>
-            `).join('')}
+              `;
+            }).join('')}
           </div>
           <div class="order-footer">
             <span class="order-total">Total: ${UIUtils.formatPrice(order.totalAmount)}</span>
@@ -138,6 +205,7 @@ class AccountManager {
         <div class="empty-state">
           <i class="fa fa-exclamation-circle"></i>
           <p>Unable to load orders</p>
+          <p style="margin-top: 8px; font-size: 13px; opacity: 0.8;">${(error && error.message) ? error.message : ''}</p>
         </div>
       `;
     }
@@ -146,7 +214,7 @@ class AccountManager {
   /**
    * Switch between dashboard tabs
    */
-  static switchTab(tabName) {
+  static switchTab(tabName, evt) {
     // Hide all tabs
     const tabContents = document.querySelectorAll('.tab-content');
     tabContents.forEach(tab => tab.classList.remove('active'));
@@ -162,9 +230,14 @@ class AccountManager {
     }
 
     // Mark menu item as active
-    event.target.closest('.menu-item').classList.add('active');
+    const e = evt || window.event;
+    const target = e?.target;
+    const menuItem = target?.closest ? target.closest('.menu-item') : null;
+    if (menuItem) {
+      menuItem.classList.add('active');
+    }
 
-    console.log(`📄 Switched to ${tabName} tab`);
+  apiService?.log?.(`📄 Switched to ${tabName} tab`);
   }
 
   /**
@@ -227,7 +300,7 @@ class AccountManager {
         userData.password = password;
       }
 
-      console.log('💾 Saving profile changes...');
+  apiService?.log?.('💾 Saving profile changes...');
       const result = await apiService.updateUserProfile(userData);
 
       // Update local storage
@@ -265,8 +338,16 @@ class AccountManager {
     }
 
     try {
-      console.log('💾 Saving address...');
-      const result = await apiService.saveAddress(address);
+  apiService?.log?.('💾 Saving address...');
+      let result = null;
+      try {
+        result = await apiService.saveAddress(address);
+      } catch (apiError) {
+        console.warn('Address API not available, saving locally:', apiError?.message || apiError);
+      }
+
+      // Persist locally as cache (backend is the source of truth when available).
+      localStorage.setItem(this.addressStorageKey, JSON.stringify(result || address));
 
       UIUtils.showNotification('Address saved successfully!', 'success');
       this.toggleEditMode('address');
@@ -275,10 +356,10 @@ class AccountManager {
       const addressView = document.getElementById('addressView');
       addressView.innerHTML = `
         <div class="address-card">
-          <h4>${result.name}</h4>
-          <p>${result.street}</p>
-          <p>${result.city}, ${result.state} ${result.zip}</p>
-          <p>${result.country}</p>
+          <h4>${(result || address).name}</h4>
+          <p>${(result || address).street}</p>
+          <p>${(result || address).city}, ${(result || address).state} ${(result || address).zip}</p>
+          <p>${(result || address).country}</p>
         </div>
       `;
     } catch (error) {
@@ -321,7 +402,7 @@ class AccountManager {
     }
 
     try {
-      console.log('🔐 Changing password...');
+  apiService?.log?.('🔐 Changing password...');
       await apiService.changePassword({ currentPassword, newPassword });
 
       UIUtils.showNotification('Password changed successfully!', 'success');

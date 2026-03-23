@@ -21,8 +21,8 @@
                 <ul id="MenuItems">
                     <li><a href="index.html">Home</a></li>
                     <li><a href="products.html">Products</a></li>
-                    <li><a href="">About</a></li>
-                    <li><a href="">Contact</a></li>
+                    <li><a href="about.html">About</a></li>
+                    <li><a href="index.html#footer">Contact</a></li>
                     <li id="account-nav-item"><a href="account.html">Account</a></li>
                 </ul>
             </nav>
@@ -93,16 +93,16 @@
                     </div>
 
                     <ul class="dashboard-menu">
-                        <li class="menu-item active" onclick="AccountManager.switchTab('profile')">
+                        <li class="menu-item active" onclick="AccountManager.switchTab('profile', event)">
                             <i class="fa fa-user"></i> My Profile
                         </li>
-                        <li class="menu-item" onclick="AccountManager.switchTab('orders')">
+                        <li class="menu-item" onclick="AccountManager.switchTab('orders', event)">
                             <i class="fa fa-shopping-bag"></i> My Orders
                         </li>
-                        <li class="menu-item" onclick="AccountManager.switchTab('address')">
+                        <li class="menu-item" onclick="AccountManager.switchTab('address', event)">
                             <i class="fa fa-map-marker"></i> Addresses
                         </li>
-                        <li class="menu-item" onclick="AccountManager.switchTab('settings')">
+                        <li class="menu-item" onclick="AccountManager.switchTab('settings', event)">
                             <i class="fa fa-cog"></i> Settings
                         </li>
                         <li class="menu-item logout-item" onclick="AuthManager.logout()">

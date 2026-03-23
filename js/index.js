@@ -4,8 +4,6 @@
  */
 
 document.addEventListener('DOMContentLoaded', async () => {
-  console.log('DOM Content Loaded - Starting to load categories and products');
-  
   // Wait a bit for backend detection to complete
   await new Promise(resolve => setTimeout(resolve, 500));
   
@@ -15,14 +13,17 @@ document.addEventListener('DOMContentLoaded', async () => {
   updateCartCount();
 });
 
+// Keep a local cache so the homepage can add-to-cart without an extra round-trip
+// and so it works for MongoDB string _id values too.
+let featuredProductsCache = [];
+let latestProductsCache = [];
+
 /**
  * Load categories from API
  */
 async function loadCategories() {
   try {
-    console.log('Loading categories...');
     const response = await apiService.getCategories();
-    console.log('Categories response:', response);
     
     // Handle both array and object responses
     let categories = [];
@@ -32,7 +33,6 @@ async function loadCategories() {
       categories = response.data;
     }
     
-    console.log('Categories loaded:', categories);
     const container = document.getElementById('categoriesContainer');
     
     if (categories.length === 0) {
@@ -60,9 +60,7 @@ async function loadCategories() {
  */
 async function loadFeaturedProducts() {
   try {
-    console.log('Loading featured products...');
     const response = await apiService.getProducts({ limit: 4 });
-    console.log('Products response:', response);
     
     // Handle both array and object responses
     let products = [];
@@ -71,8 +69,8 @@ async function loadFeaturedProducts() {
     } else if (response && response.data) {
       products = response.data;
     }
-    
-    console.log('Products loaded:', products);
+
+    featuredProductsCache = products;
     const container = document.getElementById('featuredProducts');
     
     if (products.length === 0) {
@@ -82,11 +80,8 @@ async function loadFeaturedProducts() {
     }
     
     container.innerHTML = products
-      .map(product => UIUtils.renderProductCard(product))
+      .map(product => UIUtils.renderProductCard(product, { showAddToCart: false }))
       .join('');
-    
-    // Attach event listeners to "Add to Cart" buttons
-    attachAddToCartListeners();
   } catch (error) {
     console.error('Error loading products:', error);
     document.getElementById('featuredProducts').innerHTML = '<p>Error loading products</p>';
@@ -98,9 +93,7 @@ async function loadFeaturedProducts() {
  */
 async function loadLatestProducts() {
   try {
-    console.log('Loading latest products...');
     const response = await apiService.getProducts({ limit: 8 });
-    console.log('Latest products response:', response);
     
     // Handle both array and object responses
     let products = [];
@@ -109,8 +102,8 @@ async function loadLatestProducts() {
     } else if (response && response.data) {
       products = response.data;
     }
-    
-    console.log('Latest products loaded:', products);
+
+    latestProductsCache = products;
     const container = document.getElementById('latestProducts');
     
     if (products.length === 0) {
@@ -120,38 +113,11 @@ async function loadLatestProducts() {
     }
     
     container.innerHTML = products
-      .map(product => UIUtils.renderProductCard(product))
+      .map(product => UIUtils.renderProductCard(product, { showAddToCart: false }))
       .join('');
-    
-    // Attach event listeners to "Add to Cart" buttons
-    attachAddToCartListeners();
   } catch (error) {
     console.error('Error loading latest products:', error);
     document.getElementById('latestProducts').innerHTML = '<p>Error loading products</p>';
-  }
-}
-
-/**
- * Attach click listeners to add to cart buttons
- */
-function attachAddToCartListeners() {
-  document.querySelectorAll('.btn-add-cart').forEach(button => {
-    button.addEventListener('click', handleAddToCart);
-  });
-}
-
-/**
- * Handle adding product to cart
- */
-async function handleAddToCart(event) {
-  event.preventDefault();
-  const productId = parseInt(event.target.dataset.productId);
-  const product = await apiService.getProduct(productId);
-  
-  if (product) {
-    cartManager.addItem(product, 1);
-    updateCartCount();
-    UIUtils.showNotification(`${product.name} added to cart!`, 'success');
   }
 }
 

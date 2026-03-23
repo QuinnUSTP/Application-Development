@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>About - RedStore</title>
+    <link rel="stylesheet" href="style.css">
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/font-awesome/4.7.0/css/font-awesome.min.css">
+</head>
+
+<body>
+
+    <div class="container">
+        <div class="navbar">
+            <div class="logo">
+                <a href="index.html"><img src="images/logo.png" width="125px"></a>
+            </div>
+            <nav>
+                <ul id="MenuItems">
+                    <li><a href="index.html">Home</a></li>
+                    <li><a href="products.html">Products</a></li>
+                    <li><a href="about.html">About</a></li>
+                    <li><a href="index.html#footer">Contact</a></li>
+                    <li id="account-nav-item"><a href="account.html">Account</a></li>
+                </ul>
+            </nav>
+            <a href="cart.html">
+                <img src="images/cart.png" width="30px" height="30px">
+                <span id="cart-count" class="cart-count">0</span>
+            </a>
+            <img src="images/menu.png" class="menu-icon" onclick="UIUtils.toggleMenu()">
+        </div>
+    </div>
+
+    <div class="small-container about-hero">
+        <div class="row">
+            <div class="col-2">
+                <h1>About RedStore</h1>
+                <p>
+                    RedStore is a modern sportswear and lifestyle shop built to make it easier to browse,
+                    discover, and buy quality products with a clean shopping experience.
+                </p>
+                <p>
+                    We focus on a simple storefront, fast product browsing, and a consistent design across every page
+                    so customers can shop without friction.
+                </p>
+                <div class="about-actions">
+                    <a href="products.html" class="btn">Shop Products &#8594;</a>
+                    <a href="account.html" class="btn btn-outline">My Account</a>
+                </div>
+            </div>
+            <div class="col-2">
+                <img src="images/image1.png" alt="About RedStore">
+            </div>
+        </div>
+    </div>
+
+    <div class="small-container about-values">
+        <h2 class="title">What makes RedStore different</h2>
+        <div class="row">
+            <div class="col-3 about-card">
+                <i class="fa fa-truck"></i>
+                <h3>Fast Shopping</h3>
+                <p>Browse products quickly with a simple, responsive layout.</p>
+            </div>
+            <div class="col-3 about-card">
+                <i class="fa fa-shield"></i>
+                <h3>Safe Checkout</h3>
+                <p>Designed to connect smoothly with the cart and account pages.</p>
+            </div>
+            <div class="col-3 about-card">
+                <i class="fa fa-star"></i>
+                <h3>Quality Picks</h3>
+                <p>Showcasing curated products for sports and active lifestyle needs.</p>
+            </div>
+        </div>
+    </div>
+
+    <div class="footer" id="footer">
+        <div class="container">
+            <div class="row">
+                <div class="footer-col-1">
+                    <h3>Download our App</h3>
+                    <p>Download App for Android and ios mobile phone.</p>
+                    <div class="app-logo">
+                        <img src="images/play-store.png">
+                        <img src="images/app-store.png">
+                    </div>
+                </div>
+                <div class="footer-col-2">
+                    <img src="images/logo-white.png">
+                    <p>Our Purpose Is To Sustainably Make the Pleasure and Benefits of Sports Accessible to the Many.</p>
+                </div>
+                <div class="footer-col-3">
+                    <h3>Useful Links</h3>
+                    <ul>
+                        <li><a href="products.html">Products</a></li>
+                        <li><a href="account.html">Account</a></li>
+                        <li><a href="cart.html">Cart</a></li>
+                        <li><a href="about.html">About</a></li>
+                    </ul>
+                </div>
+                <div class="footer-col-4">
+                    <h3>Follow us</h3>
+                    <ul>
+                        <li>Facebook</li>
+                        <li>Twitter</li>
+                        <li>Instagram</li>
+                        <li>Youtube</li>
+                    </ul>
+                </div>
+            </div>
+            <hr>
+            <p class="copyright"> Copyright 2024 - RedStore</p>
+        </div>
+    </div>
+
+    <script src="js/api.js"></script>
+    <script src="js/cart.js"></script>
+    <script src="js/ui-utils.js"></script>
+    <script src="js/site-nav.js"></script>
+    <script src="js/auth.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            if (window.UIUtils) {
+                UIUtils.toggleMenu();
+            }
+        });
+    </script>
+</body>
+
+</html>

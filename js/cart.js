@@ -41,13 +41,14 @@ class CartManager {
    * @param {number} quantity
    */
   addItem(product, quantity = 1) {
-    const existingItem = this.cart.find(item => item.id === product.id);
+    const normalizedProduct = this.normalizeProduct(product);
+    const existingItem = this.cart.find(item => this.getCartKey(item) === this.getCartKey(normalizedProduct));
     
     if (existingItem) {
       existingItem.quantity += quantity;
     } else {
       this.cart.push({
-        ...product,
+        ...normalizedProduct,
         quantity,
       });
     }
@@ -60,7 +61,7 @@ class CartManager {
    * @param {number} productId
    */
   removeItem(productId) {
-    this.cart = this.cart.filter(item => item.id !== productId);
+    this.cart = this.cart.filter(item => this.getCartKey(item) !== String(productId));
     this.saveCart();
   }
 
@@ -70,7 +71,7 @@ class CartManager {
    * @param {number} quantity
    */
   updateQuantity(productId, quantity) {
-    const item = this.cart.find(item => item.id === productId);
+    const item = this.cart.find(item => this.getCartKey(item) === String(productId));
     if (item) {
       if (quantity <= 0) {
         this.removeItem(productId);
@@ -118,6 +119,30 @@ class CartManager {
    */
   clearCart() {
     this.clear();
+  }
+
+  /**
+   * Normalize product identity so cart operations stay consistent.
+   * @param {Object} product
+   * @returns {Object}
+   */
+  normalizeProduct(product) {
+    const id = product?.id ?? product?._id ?? product?.cartId;
+    return {
+      ...product,
+      id,
+      _id: product?._id ?? null,
+      cartId: String(id),
+    };
+  }
+
+  /**
+   * Get a stable cart key for comparisons.
+   * @param {Object} item
+   * @returns {string}
+   */
+  getCartKey(item) {
+    return String(item?.cartId ?? item?._id ?? item?.id ?? '');
   }
 
   /**

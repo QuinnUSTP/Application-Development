@@ -38,9 +38,12 @@ class UIUtils {
   /**
    * Render product card HTML
    * @param {Object} product
+   * @param {Object} [options]
+   * @param {boolean} [options.showAddToCart=true]
    * @returns {string}
    */
-  static renderProductCard(product) {
+  static renderProductCard(product, options = {}) {
+    const { showAddToCart = true } = options;
     // Use MongoDB _id if available, fallback to id
     const productId = product._id || product.id;
     
@@ -56,7 +59,7 @@ class UIUtils {
           ${UIUtils.renderStars(product.rating)}
         </div>
         <p>${UIUtils.formatPrice(product.price)}</p>
-        <button class="btn-add-cart" data-product-id="${productId}">Add to Cart</button>
+        ${showAddToCart ? `<button class="btn-add-cart" data-product-id="${productId}">Add to Cart</button>` : ''}
       </div>
     `;
   }

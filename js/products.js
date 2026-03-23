@@ -9,7 +9,7 @@ let currentSort = 'default';
 let allProducts = [];
 
 document.addEventListener('DOMContentLoaded', async () => {
-  console.log('Products page loaded');
+  apiService?.log?.('Products page loaded');
   // Show loading state immediately
   const container = document.getElementById('productsContainer');
   if (container) {
@@ -24,13 +24,13 @@ document.addEventListener('DOMContentLoaded', async () => {
  */
 async function loadProducts() {
   try {
-    console.log('Loading all products...');
+    apiService?.log?.('Loading all products...');
     const filters = {
       sortBy: currentSort === 'default' ? 'newest' : currentSort,
     };
     
     const response = await apiService.getProducts(filters);
-    console.log('API Response:', response);
+    apiService?.log?.('API Response:', response);
     
     // Handle both array response and object response from backend
     if (Array.isArray(response)) {
@@ -41,7 +41,7 @@ async function loadProducts() {
       allProducts = [];
     }
     
-    console.log('Loaded products:', allProducts);
+  apiService?.log?.('Loaded products:', allProducts);
     
     if (allProducts.length === 0) {
       console.warn('No products loaded from API');
@@ -150,8 +150,8 @@ function attachAddToCartListeners() {
  */
 async function handleAddToCart(event) {
   event.preventDefault();
-  const productId = parseInt(event.target.dataset.productId);
-  const product = allProducts.find(p => p.id === productId);
+  const productId = event.currentTarget.dataset.productId;
+  const product = allProducts.find(p => String(p.id) === String(productId) || String(p._id) === String(productId));
   
   if (product) {
     cartManager.addItem(product, 1);

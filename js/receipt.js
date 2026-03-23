@@ -4,7 +4,7 @@
  */
 
 document.addEventListener('DOMContentLoaded', async () => {
-  console.log('Receipt page loaded');
+  apiService?.log?.('Receipt page loaded');
   await loadReceipt();
   updateCartCount();
 });
@@ -23,7 +23,7 @@ async function loadReceipt() {
       return;
     }
     
-    console.log('🧾 Loading receipt for order:', orderId);
+  apiService?.log?.('🧾 Loading receipt for order:', orderId);
     
     // Check if user is logged in
     if (!apiService.getStoredToken()) {
@@ -39,7 +39,7 @@ async function loadReceipt() {
       return;
     }
     
-    console.log('✅ Receipt loaded:', order);
+  apiService?.log?.('✅ Receipt loaded:', order);
     renderReceipt(order);
   } catch (error) {
     console.error('Error loading receipt:', error);
@@ -66,7 +66,7 @@ function renderReceipt(order) {
   
   if (order.items && order.items.length > 0) {
     itemsHtml = order.items.map(item => {
-      const productName = item.product.name || item.product;
+      const productName = item?.product?.name || item?.name || item?.product || 'Product';
       const price = item.price;
       const quantity = item.quantity;
       const subtotal = price * quantity;

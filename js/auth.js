@@ -9,12 +9,12 @@ class AuthManager {
    */
   static initialize() {
     document.addEventListener('DOMContentLoaded', () => {
-      console.log('🔐 AuthManager initialized');
+      apiService?.log?.('🔐 AuthManager initialized');
       
       // Check if user is already logged in
       const userData = localStorage.getItem('user_data');
       if (userData) {
-        console.log('✅ User already logged in');
+        apiService?.log?.('✅ User already logged in');
       }
       
       // Update cart count
@@ -76,20 +76,29 @@ class AuthManager {
     }
     
     try {
-      console.log('🔐 Attempting login for:', username);
+      apiService?.log?.('🔐 Attempting login for:', username);
       const result = await apiService.loginUser({ username, password });
       
       if (result && result.token) {
-        console.log('✅ Login successful');
+        apiService?.log?.('✅ Login successful');
         UIUtils.showNotification(`Welcome back, ${result.user.username}!`, 'success');
+
+        // Ensure in-memory token is up to date (important if apiService was constructed before login)
+        apiService.setToken(result.token);
         
         // Update navbar on all pages
         this.updateNavBar();
-        
-        // Redirect to home page after 1 second
+
+        // If we're on the account page, stay here and let AccountManager render the dashboard.
+        // Otherwise, redirect to home.
+        const isOnAccountPage = /account\.html$/i.test(window.location.pathname);
         setTimeout(() => {
-          window.location.href = 'index.html';
-        }, 1000);
+          if (isOnAccountPage && window.AccountManager) {
+            AccountManager.renderPage();
+          } else {
+            window.location.href = 'index.html';
+          }
+        }, 400);
       }
     } catch (error) {
       console.error('❌ Login error:', error);
@@ -124,20 +133,27 @@ class AuthManager {
     }
     
     try {
-      console.log('🔐 Attempting registration for:', username);
+      apiService?.log?.('🔐 Attempting registration for:', username);
       const result = await apiService.registerUser({ username, email, password });
       
       if (result && result.token) {
-        console.log('✅ Registration successful');
+        apiService?.log?.('✅ Registration successful');
         UIUtils.showNotification(`Account created successfully! Welcome, ${result.user.username}!`, 'success');
+
+        // Ensure in-memory token is up to date
+        apiService.setToken(result.token);
         
         // Update navbar on all pages
         this.updateNavBar();
-        
-        // Redirect to home page after 1 second
+
+        const isOnAccountPage = /account\.html$/i.test(window.location.pathname);
         setTimeout(() => {
-          window.location.href = 'index.html';
-        }, 1000);
+          if (isOnAccountPage && window.AccountManager) {
+            AccountManager.renderPage();
+          } else {
+            window.location.href = 'index.html';
+          }
+        }, 400);
       }
     } catch (error) {
       console.error('❌ Registration error:', error);
@@ -208,17 +224,30 @@ class AuthManager {
     const isLoggedIn = this.isLoggedIn();
     const userData = localStorage.getItem('user_data');
 
+    // If token exists but user_data is missing/corrupt, clean up and show Account.
+    if (isLoggedIn && !userData) {
+      apiService?.log?.('⚠️ Token present but user_data missing; clearing token for consistency');
+      apiService.clearToken();
+      accountNavItem.innerHTML = `<a href="account.html">Account</a>`;
+      return;
+    }
+
     if (isLoggedIn && userData) {
       try {
         const user = JSON.parse(userData);
+        if (!user || !user.username) throw new Error('Invalid user_data');
         accountNavItem.innerHTML = `<a href="account.html"><i class="fa fa-user"></i> ${user.username}</a>`;
-        console.log('✅ Navbar updated with username:', user.username);
+        apiService?.log?.('✅ Navbar updated with username:', user.username);
       } catch (e) {
         console.error('Error parsing user data:', e);
+        // If cached profile is broken, drop it and show Account.
+        localStorage.removeItem('user_data');
+        accountNavItem.innerHTML = `<a href="account.html">Account</a>`;
       }
-    } else {
-      accountNavItem.innerHTML = `<a href="account.html">Account</a>`;
+      return;
     }
+
+    accountNavItem.innerHTML = `<a href="account.html">Account</a>`;
   }
 }
 

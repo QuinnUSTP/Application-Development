@@ -5,6 +5,12 @@
 
 class AdminManager {
   /**
+   * Get JWT token from storage (supports current + legacy keys).
+   */
+  static getToken() {
+    return localStorage.getItem('auth_token') || localStorage.getItem('token') || null;
+  }
+  /**
    * Initialize admin panel on page load
    */
   static initialize() {
@@ -262,7 +268,7 @@ class AdminManager {
       const response = await fetch('http://localhost:5000/api/users/list', {
         method: 'GET',
         headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token')}`,
+          'Authorization': `Bearer ${this.getToken()}`,
           'Content-Type': 'application/json'
         }
       });
@@ -335,7 +341,7 @@ class AdminManager {
       const response = await fetch('http://localhost:5000/api/orders/all', {
         method: 'GET',
         headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token')}`,
+          'Authorization': `Bearer ${this.getToken()}`,
           'Content-Type': 'application/json'
         }
       });
@@ -470,7 +476,7 @@ class AdminManager {
     };
 
     try {
-      const token = localStorage.getItem('token');
+      const token = this.getToken();
       const response = await fetch('http://localhost:5000/api/products', {
         method: 'POST',
         headers: {
@@ -503,7 +509,7 @@ class AdminManager {
     }
 
     try {
-      const token = localStorage.getItem('token');
+      const token = this.getToken();
       const response = await fetch(`http://localhost:5000/api/products/${productId}`, {
         method: 'DELETE',
         headers: {
@@ -529,7 +535,7 @@ class AdminManager {
    */
   static async updateStock(productId, newStock) {
     try {
-      const token = localStorage.getItem('token');
+      const token = this.getToken();
       const response = await fetch(`http://localhost:5000/api/products/${productId}`, {
         method: 'PUT',
         headers: {
@@ -563,7 +569,7 @@ class AdminManager {
    */
   static async updateOrderStatus(orderId, newStatus) {
     try {
-      const token = localStorage.getItem('token');
+      const token = this.getToken();
       const response = await fetch(`http://localhost:5000/api/orders/${orderId}`, {
         method: 'PUT',
         headers: {
@@ -643,7 +649,7 @@ class AdminManager {
     }
 
     try {
-      const token = localStorage.getItem('token');
+      const token = this.getToken();
       const response = await fetch(`http://localhost:5000/api/users/${userId}/promote`, {
         method: 'PUT',
         headers: {
@@ -669,6 +675,7 @@ class AdminManager {
    */
   static logout() {
     if (confirm('Are you sure you want to logout?')) {
+      localStorage.removeItem('auth_token');
       localStorage.removeItem('token');
       localStorage.removeItem('user_data');
       window.location.href = 'account.html';
