@@ -1,0 +1,36 @@
+{
+  "kind": "redstore-receipt",
+  "version": 1,
+  "orderId": "69c1ddd504a441930f06c90b",
+  "user": {
+    "id": "69ad4c7574917ea2a3791280",
+    "username": "Nardandersen",
+    "role": "user"
+  },
+  "createdAt": "2026-03-24T00:41:57.316Z",
+  "updatedAt": "2026-03-24T00:41:57.316Z",
+  "status": "pending",
+  "paymentMethod": "cod",
+  "totalAmount": 247.25,
+  "shippingAddress": {
+    "street": "Zone 9b Mambuaya",
+    "city": "Cagayan de oro",
+    "state": "Misamis Oriental",
+    "zip": "9000",
+    "country": "Philippines"
+  },
+  "items": [
+    {
+      "product": "69c17cf43b803692334a1ff4",
+      "name": "Fossil BangBang Watch",
+      "quantity": 1,
+      "price": 65
+    },
+    {
+      "product": "69c17cf43b803692334a1ff6",
+      "name": "Running Shoes 46",
+      "quantity": 1,
+      "price": 150
+    }
+  ]
+}

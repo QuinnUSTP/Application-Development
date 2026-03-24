@@ -13,6 +13,12 @@ exports.protect = async (req, res, next) => {
   if (req.headers.authorization && req.headers.authorization.startsWith('Bearer')) {
     token = req.headers.authorization.split(' ')[1];
   }
+
+  // Support cookie-based auth (recommended) to avoid localStorage desync + XSS risk.
+  // Requires cookie-parser middleware.
+  if (!token && req.cookies && req.cookies.auth_token) {
+    token = req.cookies.auth_token;
+  }
   
   if (!token) {
     return res.status(401).json({

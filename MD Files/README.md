@@ -1,8 +1,16 @@
-# RedStore E-Commerce Platform - Database Ready Architecture
+# RedStore E-Commerce Platform (Full Stack)
 
 ## 📋 Overview
 
-This is a fully functional e-commerce platform built with a **clean, database-ready architecture**. The frontend is 100% functional with dynamic data loading, and the backend structure is ready for database integration using MongoDB and Express.js.
+This is a full-stack e-commerce platform with a static frontend (vanilla JS) and a Node/Express + MongoDB backend.
+
+Key implementation details in this repo:
+- ✅ **Database-backed cart** (requires login)
+- ✅ **Cookie-based auth** (httpOnly cookie) for browser usage
+- ✅ **Payment method selection** at checkout
+- ✅ Currency formatting: **PHP (₱)**
+
+Important: because auth is cookie-based, you **must open the frontend via http://localhost** (not `file:///`). Use the provided PowerShell start scripts.
 
 ## 🏗️ Project Structure
 
@@ -16,7 +24,7 @@ Appdev/
 ├── style.css                  # Global styles
 ├── js/                        # Frontend JavaScript modules
 │   ├── api.js                # API service layer (handles all backend calls)
-│   ├── cart.js               # Cart management with localStorage
+│   ├── cart.js               # Cart manager (loads from backend cart API)
 │   ├── ui-utils.js           # UI utilities (formatting, notifications)
 │   ├── index.js              # Homepage logic
 │   ├── products.js           # Products page logic
@@ -48,8 +56,8 @@ Appdev/
 ## ✨ Frontend Features (Fully Functional)
 
 ### ✅ Currently Working
-- **Dynamic Product Loading**: Products load from `data/products.json` 
-- **Shopping Cart**: Fully functional cart with localStorage persistence
+- **Dynamic Product Loading**: Products load from backend API
+- **Shopping Cart**: Fully functional cart stored in MongoDB (server-side)
 - **Add to Cart**: Click any "Add to Cart" button to add items
 - **Cart Management**: Update quantities, remove items, automatic total calculation
 - **Product Sorting**: Sort by price (ascending/descending), rating, newest
@@ -93,12 +101,31 @@ Appdev/
 - `GET /api/orders/:id` - Get order details (protected)
 - `PUT /api/orders/:id` - Update order status (admin)
 
-## 🚀 Getting Started
+## 🚀 Getting Started (Windows)
 
-### Frontend (Works Immediately)
-1. Open `index.html` in a web browser
-2. All features work with the static JSON data
-3. Cart persists in browser localStorage
+### 1) Start everything (recommended)
+
+Run the full stack launcher (starts MongoDB + backend + a local static server for the frontend):
+
+```powershell
+./START_FULL_STACK.ps1
+```
+
+Then open:
+- Frontend: `http://127.0.0.1:5500/index.html`
+- Backend health: `http://127.0.0.1:5000/api/health`
+
+### 2) Start frontend only
+
+If your backend is already running, you can just serve the frontend:
+
+```powershell
+./START_FRONTEND.ps1
+```
+
+### ⚠️ Do NOT open via file://
+
+Avoid double-clicking `index.html` (which opens `file:///...`). Cookie-based login won’t persist across pages on `file:///`.
 
 ### Backend Setup (MongoDB + Express)
 
@@ -137,14 +164,11 @@ npm start
 
 Server will run at `http://localhost:5000`
 
-## 🔄 Switching to Live API
+## 🔄 API Notes
 
-The frontend is already built to work with a real API. Just update the `baseUrl` in `js/api.js`:
+The frontend is configured to use the backend by default via `js/api.js`:
 
-```javascript
-// Change from empty string (uses local JSON)
-const apiService = new APIService('http://localhost:5000/api');
-```
+- `const backendUrl = 'http://localhost:5000/api'`
 
 ## 📊 Database Schema
 
@@ -213,10 +237,10 @@ const result = await apiService.createOrder(orderData);
 
 ## 💾 Data Persistence
 
-### Frontend
-- Cart data stored in **localStorage**
-- Survives page refresh
-- Access via `cartManager.getItems()`
+### Backend (source of truth)
+- Cart stored in MongoDB and tied to the logged-in user
+- Orders stored in MongoDB
+- Shipping address stored in MongoDB (`/api/users/address`)
 
 ### Backend (When Connected)
 - All data stored in **MongoDB**
@@ -287,9 +311,9 @@ Edit `data/products.json`:
 
 ## 🚨 Common Issues & Solutions
 
-**Cart not showing items?**
-- Check browser console for errors
-- Clear localStorage: `localStorage.clear()`
+**Login seems to work but you look logged out on another page?**
+- Make sure you opened the site via `http://127.0.0.1:5500/index.html` (use `START_FRONTEND.ps1`)
+- Don’t mix `file:///` with `http://127.0.0.1:5500`
 
 **API calls failing?**
 - Ensure backend is running on port 5000
@@ -301,11 +325,9 @@ Edit `data/products.json`:
 
 ## 📚 Next Steps
 
-1. **Connect to Live API**: Update `api.js` baseUrl to your backend
-2. **Implement Checkout**: Create `checkout.html` page
-3. **Add Payment**: Integrate Stripe/PayPal
-4. **Deploy**: Use Heroku for backend, Netlify for frontend
-5. **Admin Panel**: Create admin dashboard for product management
+1. Add a real payment gateway integration (GCash/Stripe/etc.)
+2. Improve address UX (force entry before checkout)
+3. Add end-to-end browser tests (Playwright)
 
 ## 📄 License
 

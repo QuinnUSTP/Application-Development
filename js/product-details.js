@@ -8,6 +8,8 @@ let currentProduct = null;
 document.addEventListener('DOMContentLoaded', async () => {
   apiService?.log?.('Product details page loaded');
   await loadProductDetails();
+  // Option B: load server cart so cart count and add-to-cart use fresh state
+  cartManager.load().finally(() => updateCartCount());
   updateCartCount();
 });
 
@@ -208,9 +210,17 @@ function bindGalleryClicks() {
 /**
  * Add product to cart
  */
-function addToCart() {
+async function addToCart() {
   if (!currentProduct) {
     UIUtils.showNotification('Product not found', 'error');
+    return;
+  }
+
+  // Option B: cart requires login
+  try {
+    await apiService.requireLogin();
+  } catch (e) {
+    UIUtils.showNotification('Please login to add items to your cart', 'info');
     return;
   }
   
@@ -228,14 +238,17 @@ function addToCart() {
     cartId: String(currentProduct._id || currentProduct.id), // stable cart key
   };
   
-  // Add to cart
-  cartManager.addItem(cartProduct, quantity);
-  updateCartCount();
-  
-  UIUtils.showNotification(`${currentProduct.name} added to cart!`, 'success');
-  
-  // Reset quantity
-  quantityInput.value = 1;
+  // Add to cart (server-backed)
+  cartManager
+    .addItem(cartProduct, quantity)
+    .then(() => {
+      updateCartCount();
+      UIUtils.showNotification(`${currentProduct.name} added to cart!`, 'success');
+      quantityInput.value = 1;
+    })
+    .catch((e) => {
+      UIUtils.showNotification(e?.message || 'Failed to add item to cart', 'error');
+    });
 }
 
 /**
@@ -260,7 +273,6 @@ function showError(message) {
 function updateCartCount() {
   const cartCount = document.getElementById('cart-count');
   if (cartCount) {
-    const items = cartManager.getItems();
-    cartCount.textContent = items.length;
+    cartCount.textContent = cartManager.getItemCount();
   }
 }

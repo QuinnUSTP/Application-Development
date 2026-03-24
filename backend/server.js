@@ -8,13 +8,21 @@ const express = require('express');
 const cors = require('cors');
 const mongoose = require('mongoose');
 const logger = require('./utils/logger');
+const cookieParser = require('cookie-parser');
 
 const app = express();
 
 // Middleware
-app.use(cors());
+// Allow credentials so the browser can send/receive auth cookies.
+app.use(
+  cors({
+    origin: true,
+    credentials: true,
+  })
+);
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+app.use(cookieParser());
 
 // Database connection
 const connectDB = async () => {
@@ -59,6 +67,12 @@ logger.info('✓ Users route registered');
 
 app.use('/api/orders', require('./routes/orders'));
 logger.info('✓ Orders route registered');
+
+app.use('/api/admin', require('./routes/admin'));
+logger.info('✓ Admin route registered');
+
+app.use('/api/cart', require('./routes/cart'));
+logger.info('✓ Cart route registered');
 
 logger.info('📍 All routes registered');
 

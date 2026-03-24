@@ -10,12 +10,9 @@ class AuthManager {
   static initialize() {
     document.addEventListener('DOMContentLoaded', () => {
       apiService?.log?.('🔐 AuthManager initialized');
-      
-      // Check if user is already logged in
-      const userData = localStorage.getItem('user_data');
-      if (userData) {
-        apiService?.log?.('✅ User already logged in');
-      }
+
+      // Cookie-based auth: don't trust localStorage for session state.
+      // We'll render navbar from server profile when possible.
       
       // Update cart count
       this.updateCartCount();
@@ -83,9 +80,18 @@ class AuthManager {
         apiService?.log?.('✅ Login successful');
         UIUtils.showNotification(`Welcome back, ${result.user.username}!`, 'success');
 
-        // Ensure in-memory token is up to date (important if apiService was constructed before login)
-        apiService.setToken(result.token);
-        
+        // Cookie-based auth: confirm the session is actually established.
+        // If you're opening pages via file:/// this will fail and you'll look "logged out".
+        try {
+          await apiService.getUserProfile();
+        } catch (e) {
+          UIUtils.showNotification(
+            'Login session not saved. Please open the site via http://127.0.0.1:5500 (use START_FRONTEND.ps1).',
+            'error',
+            5000
+          );
+        }
+
         // Update navbar on all pages
         this.updateNavBar();
 
@@ -173,34 +179,48 @@ class AuthManager {
    * Logout user
    */
   static logout() {
-    apiService.clearToken();
-    localStorage.removeItem('user_data');
-    
-    // Clear cart on logout
-    if (typeof cartManager !== 'undefined') {
-      cartManager.clearCart();
-    }
-    
-    UIUtils.showNotification('Logged out successfully', 'success');
-    
-    setTimeout(() => {
-      window.location.href = 'index.html';
-    }, 500);
+    (async () => {
+      apiService.clearToken();
+
+      // Clear cookie on server
+      if (window.apiService && typeof apiService.request === 'function') {
+        try {
+          await apiService.request('/users/logout', { method: 'POST' });
+        } catch {
+          // best-effort
+        }
+      }
+
+      // Clear cart locally without triggering any authenticated API calls.
+      if (typeof cartManager !== 'undefined' && cartManager) {
+        cartManager.cart = { items: [] };
+        cartManager._emit?.('cart-updated', cartManager.cart);
+      }
+
+      UIUtils.showNotification('Logged out successfully', 'success');
+
+      // Hard reload ensures every page re-reads the cookie session state.
+      setTimeout(() => {
+        window.location.replace('index.html');
+        window.location.reload();
+      }, 300);
+    })();
   }
 
   /**
    * Get current user
    */
   static getCurrentUser() {
-    const userData = localStorage.getItem('user_data');
-    return userData ? JSON.parse(userData) : null;
+    return null;
   }
 
   /**
    * Check if user is logged in
    */
   static isLoggedIn() {
-    return !!apiService.getStoredToken();
+    // With cookies, we can't know synchronously. Treat as "unknown".
+    // Call updateNavBar() which fetches /users/profile.
+    return false;
   }
 
   /**
@@ -209,8 +229,7 @@ class AuthManager {
   static updateCartCount() {
     const cartCount = document.getElementById('cart-count');
     if (cartCount) {
-      const items = cartManager.getItems();
-      cartCount.textContent = items.length;
+      cartCount.textContent = cartManager.getItemCount();
     }
   }
 
@@ -221,35 +240,47 @@ class AuthManager {
     const accountNavItem = document.getElementById('account-nav-item');
     if (!accountNavItem) return;
 
-    const isLoggedIn = this.isLoggedIn();
-    const userData = localStorage.getItem('user_data');
-
-    // If token exists but user_data is missing/corrupt, clean up and show Account.
-    if (isLoggedIn && !userData) {
-      apiService?.log?.('⚠️ Token present but user_data missing; clearing token for consistency');
-      apiService.clearToken();
-      accountNavItem.innerHTML = `<a href="account.html">Account</a>`;
-      return;
-    }
-
-    if (isLoggedIn && userData) {
-      try {
-        const user = JSON.parse(userData);
-        if (!user || !user.username) throw new Error('Invalid user_data');
-        accountNavItem.innerHTML = `<a href="account.html"><i class="fa fa-user"></i> ${user.username}</a>`;
-        apiService?.log?.('✅ Navbar updated with username:', user.username);
-      } catch (e) {
-        console.error('Error parsing user data:', e);
-        // If cached profile is broken, drop it and show Account.
-        localStorage.removeItem('user_data');
+    // Cookie-auth: fetch profile to decide what to render.
+    apiService
+      .getSessionUser()
+      .then((user) => {
+        if (user && user.username) {
+          accountNavItem.innerHTML = `<a href="account.html"><i class="fa fa-user"></i> ${user.username}</a>`;
+          return;
+        }
         accountNavItem.innerHTML = `<a href="account.html">Account</a>`;
-      }
-      return;
-    }
-
-    accountNavItem.innerHTML = `<a href="account.html">Account</a>`;
+      })
+      .catch(() => {
+        accountNavItem.innerHTML = `<a href="account.html">Account</a>`;
+      });
   }
 }
+
+// Optional: quick session check in DevTools.
+// Usage: await window.REDSTORE_SESSION()
+window.REDSTORE_SESSION = async function () {
+  try {
+    const me = await apiService.getSessionUser();
+    console.log('[RedStore] session user:', me);
+    return me;
+  } catch (e) {
+    console.log('[RedStore] session error:', e);
+    return null;
+  }
+};
+
+// Force a fresh /users/profile call (bypasses any UI assumptions).
+// Usage: await window.REDSTORE_REFRESH_SESSION()
+window.REDSTORE_REFRESH_SESSION = async function () {
+  try {
+    const me = await apiService.getUserProfile();
+    console.log('[RedStore] refreshed profile:', me);
+    return { ok: true, me };
+  } catch (e) {
+    console.log('[RedStore] refreshed profile error:', e);
+    return { ok: false, status: e?.status, code: e?.code, message: e?.message };
+  }
+};
 
 // Initialize on page load
 AuthManager.initialize();

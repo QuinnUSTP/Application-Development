@@ -1,0 +1,30 @@
+{
+  "kind": "redstore-receipt",
+  "version": 1,
+  "orderId": "69c1dc55592b22ed0751984e",
+  "user": {
+    "id": "69ad4c7574917ea2a3791280",
+    "username": "Nardandersen",
+    "role": "user"
+  },
+  "createdAt": "2026-03-24T00:35:33.911Z",
+  "updatedAt": "2026-03-24T00:35:33.911Z",
+  "status": "pending",
+  "paymentMethod": "cod",
+  "totalAmount": 86.25,
+  "shippingAddress": {
+    "street": "To be entered",
+    "city": "To be entered",
+    "state": "To be entered",
+    "zip": "To be entered",
+    "country": "To be entered"
+  },
+  "items": [
+    {
+      "product": "69c17cf43b803692334a1ff7",
+      "name": "Running Shoes 1",
+      "quantity": 1,
+      "price": 75
+    }
+  ]
+}

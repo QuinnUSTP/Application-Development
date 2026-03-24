@@ -12,6 +12,8 @@ const scripts = [
   'smoke-auth.js',
   'smoke-admin.js',
   'smoke-address.js',
+  'smoke-cart.js',
+  'smoke-checkout-cart.js',
   'smoke-receipt-archive.js',
 ];
 

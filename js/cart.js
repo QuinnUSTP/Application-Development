@@ -1,172 +1,145 @@
 /**
  * Cart Management Module
- * Handles all cart operations with localStorage
+ * Option B: Server-side cart that requires login.
  */
 
 class CartManager {
   constructor() {
-    this.storageKey = 'redstore_cart';
-    this.cart = this.loadCart();
+    this.cart = { items: [] };
+    this._listeners = [];
+    this._loading = null;
+    this._authPing = null;
   }
 
   /**
-   * Load cart from localStorage
-   * @returns {Array}
+   * Cookie-session auth: ask backend for /users/profile.
+   * Returns true if logged in, false otherwise.
    */
-  loadCart() {
-    try {
-      const saved = localStorage.getItem(this.storageKey);
-      return saved ? JSON.parse(saved) : [];
-    } catch (error) {
-      console.error('Error loading cart:', error);
-      return [];
-    }
-  }
+  async isAuthenticated() {
+    if (!window.apiService || typeof apiService.getUserProfile !== 'function') return false;
 
-  /**
-   * Save cart to localStorage
-   */
-  saveCart() {
-    try {
-      localStorage.setItem(this.storageKey, JSON.stringify(this.cart));
-      this.notifyListeners('cart-updated', this.cart);
-    } catch (error) {
-      console.error('Error saving cart:', error);
-    }
-  }
-
-  /**
-   * Add item to cart
-   * @param {Object} product
-   * @param {number} quantity
-   */
-  addItem(product, quantity = 1) {
-    const normalizedProduct = this.normalizeProduct(product);
-    const existingItem = this.cart.find(item => this.getCartKey(item) === this.getCartKey(normalizedProduct));
-    
-    if (existingItem) {
-      existingItem.quantity += quantity;
-    } else {
-      this.cart.push({
-        ...normalizedProduct,
-        quantity,
-      });
-    }
-    
-    this.saveCart();
-  }
-
-  /**
-   * Remove item from cart
-   * @param {number} productId
-   */
-  removeItem(productId) {
-    this.cart = this.cart.filter(item => this.getCartKey(item) !== String(productId));
-    this.saveCart();
-  }
-
-  /**
-   * Update item quantity
-   * @param {number} productId
-   * @param {number} quantity
-   */
-  updateQuantity(productId, quantity) {
-    const item = this.cart.find(item => this.getCartKey(item) === String(productId));
-    if (item) {
-      if (quantity <= 0) {
-        this.removeItem(productId);
-      } else {
-        item.quantity = quantity;
-        this.saveCart();
+    if (this._authPing) return this._authPing;
+    this._authPing = (async () => {
+      try {
+        await apiService.getUserProfile();
+        return true;
+      } catch (e) {
+        return false;
+      } finally {
+        this._authPing = null;
       }
+    })();
+
+    return this._authPing;
+  }
+
+  /**
+   * Load the cart from the backend (creates it if missing).
+   */
+  async load() {
+    if (!(await this.isAuthenticated())) {
+      this.cart = { items: [] };
+      this._emit('cart-updated', this.cart);
+      return this.cart;
+    }
+
+    if (this._loading) return this._loading;
+
+    this._loading = (async () => {
+      const res = await apiService.request('/cart', { method: 'GET' });
+      this.cart = res.data || { items: [] };
+      this._emit('cart-updated', this.cart);
+      return this.cart;
+    })();
+
+    try {
+      return await this._loading;
+    } finally {
+      this._loading = null;
     }
   }
 
   /**
-   * Get all cart items
-   * @returns {Array}
+   * Add quantity to an item (or set to 1 if missing).
+   * @param {Object|string} product - product object or productId
+   * @param {number} quantity
    */
-  getItems() {
+  async addItem(product, quantity = 1) {
+    if (!(await this.isAuthenticated())) {
+      throw new Error('Please login to add items to your cart');
+    }
+
+    const productId = typeof product === 'string' ? product : (product?._id || product?.id);
+    if (!productId) throw new Error('Invalid product');
+
+    // Ensure we have an up-to-date cart so we can "add" by setting qty.
+    await this.load();
+    const existing = (this.cart.items || []).find((it) => String(it.productId) === String(productId));
+    const nextQty = Number(existing?.quantity || 0) + Number(quantity || 0);
+    return this.setItemQuantity(productId, nextQty);
+  }
+
+  async setItemQuantity(productId, quantity) {
+    if (!(await this.isAuthenticated())) {
+      throw new Error('Please login to manage your cart');
+    }
+    const qty = Number(quantity);
+    const res = await apiService.request('/cart/item', {
+      method: 'POST',
+      body: JSON.stringify({ productId, quantity: qty }),
+    });
+    this.cart = res.data || { items: [] };
+    this._emit('cart-updated', this.cart);
     return this.cart;
   }
 
-  /**
-   * Get cart total
-   * @returns {number}
-   */
+  async removeItem(productId) {
+    return this.setItemQuantity(productId, 0);
+  }
+
+  async clearCart() {
+    if (!(await this.isAuthenticated())) {
+      this.cart = { items: [] };
+      this._emit('cart-updated', this.cart);
+      return;
+    }
+    await apiService.request('/cart/clear', { method: 'POST' });
+    this.cart = { items: [] };
+    this._emit('cart-updated', this.cart);
+  }
+
+  getItems() {
+    return this.cart?.items || [];
+  }
+
   getTotal() {
-    return this.cart.reduce((total, item) => total + (item.price * item.quantity), 0);
+    return this.getItems().reduce((total, item) => total + (Number(item.price || 0) * Number(item.quantity || 0)), 0);
   }
 
-  /**
-   * Get item count
-   * @returns {number}
-   */
   getItemCount() {
-    return this.cart.reduce((count, item) => count + item.quantity, 0);
+    return this.getItems().reduce((count, item) => count + Number(item.quantity || 0), 0);
   }
 
-  /**
-   * Clear cart
-   */
-  clear() {
-    this.cart = [];
-    this.saveCart();
-  }
-
-  /**
-   * Clear cart (alias for clear method)
-   */
-  clearCart() {
-    this.clear();
-  }
-
-  /**
-   * Normalize product identity so cart operations stay consistent.
-   * @param {Object} product
-   * @returns {Object}
-   */
-  normalizeProduct(product) {
-    const id = product?.id ?? product?._id ?? product?.cartId;
-    return {
-      ...product,
-      id,
-      _id: product?._id ?? null,
-      cartId: String(id),
-    };
-  }
-
-  /**
-   * Get a stable cart key for comparisons.
-   * @param {Object} item
-   * @returns {string}
-   */
-  getCartKey(item) {
-    return String(item?.cartId ?? item?._id ?? item?.id ?? '');
-  }
-
-  /**
-   * Subscribe to cart changes
-   * @param {Function} callback
-   */
   subscribe(callback) {
-    if (!window._cartListeners) {
-      window._cartListeners = [];
-    }
-    window._cartListeners.push(callback);
+    this._listeners.push(callback);
   }
 
-  /**
-   * Notify all listeners of cart changes
-   * @param {string} event
-   * @param {*} data
-   */
-  notifyListeners(event, data) {
-    if (window._cartListeners) {
-      window._cartListeners.forEach(callback => callback(event, data));
-    }
+  _emit(event, data) {
+    this._listeners.forEach((cb) => {
+      try {
+        cb(event, data);
+      } catch (e) {
+        // ignore listener errors
+      }
+    });
   }
 }
 
 // Create and export a singleton instance
 const cartManager = new CartManager();
+
+// Export for browser globals (non-module scripts)
+try {
+  window.cartManager = cartManager;
+  window.CartManager = CartManager;
+} catch {}

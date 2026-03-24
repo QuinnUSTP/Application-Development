@@ -29,9 +29,9 @@ class UIUtils {
    * @returns {string}
    */
   static formatPrice(price) {
-    return new Intl.NumberFormat('en-US', {
+    return new Intl.NumberFormat('en-PH', {
       style: 'currency',
-      currency: 'USD',
+      currency: 'PHP',
     }).format(price);
   }
 
@@ -131,6 +131,11 @@ class UIUtils {
     });
   }
 }
+
+// Export for browser globals (non-module scripts)
+try {
+  window.UIUtils = UIUtils;
+} catch {}
 
 // Add CSS animations to head
 const style = document.createElement('style');

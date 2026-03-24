@@ -52,7 +52,8 @@ async function main() {
   const products = Array.isArray(r.json?.data) ? r.json.data : (Array.isArray(r.json) ? r.json : []);
   if (!products.length) throw new Error('No products found; seed the DB first.');
 
-  const p = products[0];
+  // Pick an in-stock product so the smoke test stays stable.
+  const p = products.find((x) => Number(x.stock || 0) > 0) || products[0];
   const productId = p._id || p.id;
   if (!productId) throw new Error('Product is missing _id/id');
 

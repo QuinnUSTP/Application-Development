@@ -8,6 +8,7 @@ const router = express.Router();
 const {
   registerUser,
   loginUser,
+  logoutUser,
   getUserProfile,
   getAllUsers,
   promoteToAdmin,
@@ -19,6 +20,7 @@ const { protect, authorize } = require('../middleware/auth');
 
 router.post('/register', registerUser);
 router.post('/login', loginUser);
+router.post('/logout', logoutUser);
 router.get('/profile', protect, getUserProfile);
 router.post('/change-password', protect, changePassword);
 

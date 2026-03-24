@@ -596,6 +596,147 @@ input:focus {
     margin: 80px auto;
 }
 
+.cart-header {
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: 12px;
+    margin: 0 0 18px;
+}
+
+.cart-header h2 {
+    margin: 0;
+    font-size: 24px;
+    color: var(--text-color);
+}
+
+.cart-actions {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+}
+
+.btn-sm {
+    padding: 8px 14px;
+    margin: 0;
+    border-radius: 999px;
+    font-size: 13px;
+    line-height: 1;
+}
+
+.btn-danger {
+    background: #dc3545;
+}
+
+.btn-danger:hover {
+    background: #b02a37;
+}
+
+.cart-table {
+    background: #fff;
+    border: 1px solid #eee;
+    border-radius: 10px;
+    overflow: hidden;
+}
+
+.cart-table th {
+    padding: 12px 10px;
+}
+
+.cart-table td {
+    padding: 14px 10px;
+    border-bottom: 1px solid #f1f1f1;
+    vertical-align: middle;
+}
+
+.cart-table tr:last-child td {
+    border-bottom: none;
+}
+
+.cart-info {
+    gap: 10px;
+}
+
+.cart-info img {
+    width: 84px;
+    height: 84px;
+    border-radius: 8px;
+    background: #fafafa;
+    object-fit: contain;
+}
+
+.cart-info p {
+    margin: 0 0 4px;
+    font-weight: 600;
+}
+
+.cart-muted {
+    color: var(--text-color-2);
+    font-size: 12px;
+}
+
+.qty-input {
+    width: 78px;
+    height: 36px;
+    padding: 6px 10px;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+}
+
+.cart-summary {
+    display: grid;
+    grid-template-columns: 1fr 420px;
+    gap: 18px;
+    align-items: start;
+    margin-top: 18px;
+}
+
+.payment-card,
+.totals-card {
+    border: 1px solid #eee;
+    border-radius: 10px;
+    padding: 14px;
+    background: #fff;
+}
+
+.totals-card table {
+    width: 100%;
+    border-top: none;
+    max-width: none;
+}
+
+.totals-card tr td {
+    padding: 10px 0;
+}
+
+.totals-card tr:last-child td {
+    font-weight: 700;
+}
+
+.checkout-btn {
+    width: 100%;
+    margin: 12px 0 0;
+    padding: 12px 18px;
+    border: none;
+    cursor: pointer;
+}
+
+.cart-empty {
+    text-align: center;
+    padding: 46px 12px;
+}
+
+.cart-empty h2 {
+    margin-bottom: 8px;
+}
+
+@media only screen and (max-width: 850px) {
+    .cart-summary {
+        grid-template-columns: 1fr;
+    }
+}
+
 table {
     width: 100%;
     border-collapse: collapse;
@@ -1051,6 +1192,56 @@ form a {
     padding: 20px;
     margin-bottom: 15px;
     border-left: 4px solid var(--highlight-color);
+
+    /* ----------- admin modal (reusable) ----------- */
+    .admin-modal {
+        position: fixed;
+        inset: 0;
+        z-index: 9999;
+        background: rgba(0, 0, 0, 0.55);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 16px;
+    }
+
+    .admin-modal-content {
+        width: 100%;
+        max-width: 680px;
+        background: #fff;
+        border-radius: 12px;
+        box-shadow: 0 14px 40px rgba(0, 0, 0, 0.25);
+        overflow: hidden;
+    }
+
+    .admin-modal-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 14px 16px;
+        border-bottom: 1px solid #eee;
+    }
+
+    .admin-modal-header h3 {
+        margin: 0;
+    }
+
+    .admin-modal-close {
+        border: none;
+        background: transparent;
+        font-size: 28px;
+        line-height: 1;
+        cursor: pointer;
+        color: #999;
+    }
+
+    .admin-modal-close:hover {
+        color: #333;
+    }
+
+    .admin-modal form {
+        padding: 16px;
+    }
 }
 
 .order-header {

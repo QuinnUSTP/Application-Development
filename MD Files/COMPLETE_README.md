@@ -129,14 +129,17 @@ Your homepage now features **EXACTLY** like your reference copy with:
 ✅ **Shopping Cart**
 - Add to cart from any product
 - Cart counter updates in navbar
-- Items saved to localStorage
-- Persistent across page refreshes
+- Cart stored in MongoDB (server-side)
+- Requires login (cookie-based session)
 
 ✅ **Add to Cart Button**
 - Visible on all product cards
 - Clickable with visual feedback
 - Updates cart counter instantly
 - Works on featured and latest products
+
+✅ **Currency**
+- All prices formatted as Philippine Peso (₱)
 
 ---
 

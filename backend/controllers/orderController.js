@@ -7,6 +7,7 @@ const Order = require('../models/Order');
 const Product = require('../models/Product');
 const { writeReceipt, readReceipt, receiptExists } = require('../utils/receiptStore');
 const logger = require('../utils/logger');
+const { writeAdminAudit } = require('../utils/adminAudit');
 
 function buildReceiptPayload(order, user) {
   const plain = order?.toObject ? order.toObject({ virtuals: false }) : order;
@@ -224,12 +225,28 @@ exports.updateOrderStatus = async (req, res) => {
         message: 'Order not found',
       });
     }
+
+    await writeAdminAudit(req, {
+      action: 'order.status.update',
+      targetType: 'order',
+      targetId: order?._id || id,
+      status: 'success',
+      meta: { status },
+    });
     
     res.status(200).json({
       success: true,
       data: order,
     });
   } catch (error) {
+    await writeAdminAudit(req, {
+      action: 'order.status.update',
+      targetType: 'order',
+      targetId: req?.params?.id,
+      status: 'failure',
+      message: error.message,
+      meta: { status: req?.body?.status },
+    });
     res.status(400).json({
       success: false,
       message: error.message,

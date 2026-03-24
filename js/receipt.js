@@ -25,11 +25,8 @@ async function loadReceipt() {
     
   apiService?.log?.('🧾 Loading receipt for order:', orderId);
     
-    // Check if user is logged in
-    if (!apiService.getStoredToken()) {
-      showError('Please login to view your receipt');
-      return;
-    }
+    // Check if user is logged in (cookie auth). Also provides customer info.
+    const me = await apiService.getUserProfile();
     
     // Fetch order from backend
     const order = await apiService.getOrder(orderId);
@@ -40,7 +37,7 @@ async function loadReceipt() {
     }
     
   apiService?.log?.('✅ Receipt loaded:', order);
-    renderReceipt(order);
+    renderReceipt(order, me);
   } catch (error) {
     console.error('Error loading receipt:', error);
     showError(error.message || 'Failed to load receipt');
@@ -50,9 +47,8 @@ async function loadReceipt() {
 /**
  * Render receipt HTML
  */
-function renderReceipt(order) {
+function renderReceipt(order, user) {
   const receiptContent = document.getElementById('receiptContent');
-  const user = JSON.parse(localStorage.getItem('user_data'));
   const orderDate = new Date(order.createdAt).toLocaleDateString('en-US', {
     year: 'numeric',
     month: 'long',

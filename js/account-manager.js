@@ -23,22 +23,23 @@ class AccountManager {
    */
   static renderPage() {
     const accountPage = document.getElementById('accountPage');
-    const isLoggedIn = AuthManager.isLoggedIn();
 
-    // If the token is missing but we still have cached user_data, it's a stale session.
-    // Clear it so the UI doesn't pretend the user is logged in.
-    if (!isLoggedIn && localStorage.getItem('user_data')) {
-      console.warn('⚠️ Stale session detected (user_data without auth_token). Clearing cached user_data.');
-      localStorage.removeItem('user_data');
-    }
-    
-    if (isLoggedIn) {
-      apiService?.log?.('✅ User is logged in - showing dashboard');
-      this.renderDashboard(accountPage);
-    } else {
+    // Cookie-based auth: never trust localStorage. Ask the backend.
+    (async () => {
+      try {
+        const me = await apiService.getUserProfile();
+        if (me) {
+          apiService?.log?.('✅ User is logged in (server profile) - showing dashboard');
+          this.renderDashboard(accountPage, me);
+          return;
+        }
+      } catch (e) {
+        // ignore; will render login
+      }
+
       apiService?.log?.('❌ User not logged in - showing login/register forms');
       this.renderLoginForms(accountPage);
-    }
+    })();
   }
 
   /**
@@ -58,13 +59,13 @@ class AccountManager {
   /**
    * Render account dashboard
    */
-  static renderDashboard(container) {
+  static renderDashboard(container, me = null) {
     const template = document.getElementById('dashboardTemplate');
     const clone = template.content.cloneNode(true);
     container.appendChild(clone);
     
     // Load user data
-    this.loadUserData();
+    this.loadUserData(me);
     this.loadAddress();
     this.loadOrders();
   }
@@ -77,35 +78,15 @@ class AccountManager {
     if (!addressView) return;
 
     (async () => {
-      // Prefer backend-persisted address
-      if (window.apiService && typeof apiService.getAddress === 'function' && apiService.getStoredToken()) {
-        const serverAddress = await apiService.getAddress();
-        if (serverAddress) {
-          localStorage.setItem(this.addressStorageKey, JSON.stringify(serverAddress));
-          addressView.innerHTML = `
-            <div class="address-card">
-              <h4>${serverAddress.name || ''}</h4>
-              <p>${serverAddress.street || ''}</p>
-              <p>${serverAddress.city || ''}, ${serverAddress.state || ''} ${serverAddress.zip || ''}</p>
-              <p>${serverAddress.country || ''}</p>
-            </div>
-          `;
-          return;
-        }
-      }
-
-      // Fallback to local cache
       try {
-        const raw = localStorage.getItem(this.addressStorageKey);
-        if (!raw) return;
-        const address = JSON.parse(raw);
-        if (!address) return;
+        const serverAddress = await apiService.getAddress();
+        if (!serverAddress) return;
         addressView.innerHTML = `
           <div class="address-card">
-            <h4>${address.name || ''}</h4>
-            <p>${address.street || ''}</p>
-            <p>${address.city || ''}, ${address.state || ''} ${address.zip || ''}</p>
-            <p>${address.country || ''}</p>
+            <h4>${serverAddress.name || ''}</h4>
+            <p>${serverAddress.street || ''}</p>
+            <p>${serverAddress.city || ''}, ${serverAddress.state || ''} ${serverAddress.zip || ''}</p>
+            <p>${serverAddress.country || ''}</p>
           </div>
         `;
       } catch (e) {
@@ -117,15 +98,13 @@ class AccountManager {
   /**
    * Load and display user data
    */
-  static loadUserData() {
-    const userData = localStorage.getItem('user_data');
-    if (!userData) {
-      console.error('No user data found');
+  static loadUserData(user) {
+    if (!user) {
+      console.error('No user profile available');
       return;
     }
 
-    const user = JSON.parse(userData);
-  apiService?.log?.('📝 Loading user data:', user);
+    apiService?.log?.('📝 Loading user data:', user);
 
     // Update header
     document.getElementById('dashboardUsername').textContent = user.username;
@@ -153,11 +132,6 @@ class AccountManager {
     if (!ordersList) return;
     
     try {
-      // Ensure API token is current (login can happen without reload)
-      if (window.apiService && typeof apiService.getStoredToken === 'function') {
-        apiService.setToken(apiService.getStoredToken());
-      }
-
       const raw = await apiService.getUserOrders();
       const orders = Array.isArray(raw) ? raw : (raw?.data || []);
   apiService?.log?.('📦 Orders loaded:', orders);
@@ -303,12 +277,11 @@ class AccountManager {
   apiService?.log?.('💾 Saving profile changes...');
       const result = await apiService.updateUserProfile(userData);
 
-      // Update local storage
-      localStorage.setItem('user_data', JSON.stringify(result.user));
-
       UIUtils.showNotification('Profile updated successfully!', 'success');
       this.toggleEditMode('profile');
-      this.loadUserData();
+      // Refresh from backend so we stay cookie-session-driven.
+      const me = await apiService.getUserProfile();
+      this.loadUserData(me);
       this.updateNavBar();
     } catch (error) {
       console.error('Error updating profile:', error);
@@ -339,15 +312,7 @@ class AccountManager {
 
     try {
   apiService?.log?.('💾 Saving address...');
-      let result = null;
-      try {
-        result = await apiService.saveAddress(address);
-      } catch (apiError) {
-        console.warn('Address API not available, saving locally:', apiError?.message || apiError);
-      }
-
-      // Persist locally as cache (backend is the source of truth when available).
-      localStorage.setItem(this.addressStorageKey, JSON.stringify(result || address));
+      const result = await apiService.saveAddress(address);
 
       UIUtils.showNotification('Address saved successfully!', 'success');
       this.toggleEditMode('address');
@@ -356,10 +321,10 @@ class AccountManager {
       const addressView = document.getElementById('addressView');
       addressView.innerHTML = `
         <div class="address-card">
-          <h4>${(result || address).name}</h4>
-          <p>${(result || address).street}</p>
-          <p>${(result || address).city}, ${(result || address).state} ${(result || address).zip}</p>
-          <p>${(result || address).country}</p>
+          <h4>${result.name}</h4>
+          <p>${result.street}</p>
+          <p>${result.city}, ${result.state} ${result.zip}</p>
+          <p>${result.country}</p>
         </div>
       `;
     } catch (error) {
@@ -436,15 +401,19 @@ class AccountManager {
     const accountNavItem = document.getElementById('account-nav-item');
     if (!accountNavItem) return;
 
-    const isLoggedIn = AuthManager.isLoggedIn();
-    const userData = localStorage.getItem('user_data');
+    (async () => {
+      try {
+        const me = await apiService.getUserProfile();
+        if (me) {
+          accountNavItem.innerHTML = `<a href="account.html"><i class="fa fa-user"></i> ${me.username}</a>`;
+          return;
+        }
+      } catch (e) {
+        // ignore
+      }
 
-    if (isLoggedIn && userData) {
-      const user = JSON.parse(userData);
-      accountNavItem.innerHTML = `<a href="account.html"><i class="fa fa-user"></i> ${user.username}</a>`;
-    } else {
       accountNavItem.innerHTML = `<a href="account.html">Account</a>`;
-    }
+    })();
   }
 }
 

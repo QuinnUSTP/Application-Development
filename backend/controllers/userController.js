@@ -5,6 +5,7 @@
 
 const User = require('../models/User');
 const jwt = require('jsonwebtoken');
+const { writeAdminAudit } = require('../utils/adminAudit');
 
 // Generate JWT token
 const generateToken = (id) => {
@@ -12,6 +13,31 @@ const generateToken = (id) => {
     expiresIn: '30d',
   });
 };
+
+function setAuthCookie(res, token) {
+  // httpOnly cookie prevents JS access (mitigates XSS + avoids localStorage desync)
+  // Note: secure should be true when served over HTTPS.
+  res.cookie('auth_token', token, {
+    httpOnly: true,
+    sameSite: 'lax',
+    secure: String(process.env.COOKIE_SECURE || '').toLowerCase() === 'true',
+    path: '/',
+    maxAge: 30 * 24 * 60 * 60 * 1000,
+  });
+}
+
+function clearAuthCookie(res) {
+  const options = {
+    httpOnly: true,
+    sameSite: 'lax',
+    secure: String(process.env.COOKIE_SECURE || '').toLowerCase() === 'true',
+    path: '/',
+  };
+
+  // Two-step clear improves cross-browser behavior.
+  res.clearCookie('auth_token', options);
+  res.cookie('auth_token', '', { ...options, expires: new Date(0) });
+}
 
 // Register user
 exports.registerUser = async (req, res) => {
@@ -35,6 +61,8 @@ exports.registerUser = async (req, res) => {
     });
     
     const token = generateToken(user._id);
+
+    setAuthCookie(res, token);
     
     res.status(201).json({
       success: true,
@@ -85,6 +113,8 @@ exports.loginUser = async (req, res) => {
     }
     
     const token = generateToken(user._id);
+
+    setAuthCookie(res, token);
     
     res.status(200).json({
       success: true,
@@ -101,6 +131,16 @@ exports.loginUser = async (req, res) => {
       success: false,
       message: error.message,
     });
+  }
+};
+
+// Logout (client can call this to clear cookie)
+exports.logoutUser = async (req, res) => {
+  try {
+    clearAuthCookie(res);
+    res.status(200).json({ success: true, message: 'Logged out' });
+  } catch (e) {
+    res.status(500).json({ success: false, message: e.message });
   }
 };
 
@@ -156,6 +196,14 @@ exports.promoteToAdmin = async (req, res) => {
         message: 'User not found',
       });
     }
+
+    await writeAdminAudit(req, {
+      action: 'user.promote',
+      targetType: 'user',
+      targetId: user?._id || id,
+      targetName: user?.username,
+      status: 'success',
+    });
     
     res.status(200).json({
       success: true,
@@ -163,6 +211,13 @@ exports.promoteToAdmin = async (req, res) => {
       data: user,
     });
   } catch (error) {
+    await writeAdminAudit(req, {
+      action: 'user.promote',
+      targetType: 'user',
+      targetId: req?.params?.id,
+      status: 'failure',
+      message: error.message,
+    });
     res.status(500).json({
       success: false,
       message: error.message,

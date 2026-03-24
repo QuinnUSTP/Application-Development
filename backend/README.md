@@ -199,12 +199,29 @@ Valid statuses: pending, processing, shipped, delivered, cancelled
 
 ## 🔐 Authentication
 
-All requests requiring authentication must include:
+This backend supports **two auth modes**:
+
+1) **Browser mode (recommended): httpOnly cookie**
+- `POST /api/users/login` and `POST /api/users/register` set an `auth_token` cookie.
+- Frontend requests must send credentials (`fetch(..., { credentials: 'include' })`).
+
+2) **Script/API mode: Bearer token**
+
+All requests requiring authentication can also include:
+
 ```
 Authorization: Bearer <jwt_token>
 ```
 
-The JWT token is received from login/register endpoints and valid for 30 days.
+The JWT token is returned by login/register endpoints and is valid for 30 days.
+
+### Logout
+
+```
+POST /api/users/logout
+```
+
+Clears the `auth_token` cookie.
 
 ## 📊 Database Models
 

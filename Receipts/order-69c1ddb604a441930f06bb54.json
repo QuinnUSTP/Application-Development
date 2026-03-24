@@ -1,0 +1,48 @@
+{
+  "kind": "redstore-receipt",
+  "version": 1,
+  "orderId": "69c1ddb604a441930f06bb54",
+  "user": {
+    "id": "69ad4c7574917ea2a3791280",
+    "username": "Nardandersen",
+    "role": "user"
+  },
+  "createdAt": "2026-03-24T00:41:26.904Z",
+  "updatedAt": "2026-03-24T00:41:26.904Z",
+  "status": "pending",
+  "paymentMethod": "cod",
+  "totalAmount": 488.75,
+  "shippingAddress": {
+    "street": "To be entered",
+    "city": "To be entered",
+    "state": "To be entered",
+    "zip": "To be entered",
+    "country": "To be entered"
+  },
+  "items": [
+    {
+      "product": "69c17cf43b803692334a1ff6",
+      "name": "Running Shoes 46",
+      "quantity": 1,
+      "price": 150
+    },
+    {
+      "product": "69c17cf43b803692334a1ff2",
+      "name": "The LionJump T-Shirt",
+      "quantity": 1,
+      "price": 95
+    },
+    {
+      "product": "69c17cf43b803692334a1ff1",
+      "name": "AirWalk Heavens HIGHCUT",
+      "quantity": 1,
+      "price": 120
+    },
+    {
+      "product": "69c17cf43b803692334a1ff0",
+      "name": "The POLO",
+      "quantity": 1,
+      "price": 60
+    }
+  ]
+}

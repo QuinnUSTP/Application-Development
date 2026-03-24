@@ -1,0 +1,42 @@
+{
+  "kind": "redstore-receipt",
+  "version": 1,
+  "orderId": "69c1df54e959ea21712e14db",
+  "user": {
+    "id": "69c17872d6fea51665fb1249",
+    "username": "admin",
+    "role": "admin"
+  },
+  "createdAt": "2026-03-24T00:48:20.106Z",
+  "updatedAt": "2026-03-24T00:48:20.106Z",
+  "status": "pending",
+  "paymentMethod": "gcash",
+  "totalAmount": 356.5,
+  "shippingAddress": {
+    "street": "Mambuaya",
+    "city": "Cagayan de Oro",
+    "state": "Misamis Oriental",
+    "zip": "9000",
+    "country": "Philippines"
+  },
+  "items": [
+    {
+      "product": "69c17cf43b803692334a1ff5",
+      "name": "Roadster Watch",
+      "quantity": 1,
+      "price": 85
+    },
+    {
+      "product": "69c17cf43b803692334a1ff7",
+      "name": "Running Shoes 1",
+      "quantity": 1,
+      "price": 75
+    },
+    {
+      "product": "69c17cf43b803692334a1ff6",
+      "name": "Running Shoes 46",
+      "quantity": 1,
+      "price": 150
+    }
+  ]
+}

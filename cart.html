@@ -37,7 +37,15 @@
     <!-- ------------- cart items details ----------------  -->
 
     <div class="small-container cart-page">
-        <table id="cartTable">
+        <div class="cart-header">
+            <h2>Shopping Cart</h2>
+            <div class="cart-actions">
+                <a class="btn btn-outline btn-sm" href="products.html">Continue Shopping</a>
+                <button id="clearCartBtn" class="btn btn-danger btn-sm" type="button" onclick="clearCart()">Clear Cart</button>
+            </div>
+        </div>
+
+        <table id="cartTable" class="cart-table">
             <tr>
                 <th>Product</th>
                 <th>Quantity</th>
@@ -49,22 +57,41 @@
             </tbody>
         </table>
 
-        <div class="total-price">
-            <table>
-                <tr>
-                    <td>Subtotal</td>
-                    <td id="subtotal">$0.00</td>
-                </tr>
-                <tr>
-                    <td>Tax (15%)</td>
-                    <td id="tax">$0.00</td>
-                </tr>
-                <tr>
-                    <td>Total</td>
-                    <td id="total">$0.00</td>
-                </tr>
-            </table>
-            <button class="btn" onclick="checkout()" style="width: 100%; margin-top: 10px;">Proceed to Checkout</button>
+        <div class="cart-summary">
+            <div class="payment-card">
+                <p style="margin: 0 0 10px; font-weight: 600;">Payment Method</p>
+                <label style="display: block; margin: 8px 0; cursor: pointer;">
+                    <input type="radio" name="payment_method" value="cod" checked>
+                    <span style="margin-left: 6px;">Cash on Delivery (COD)</span>
+                </label>
+                <label style="display: block; margin: 8px 0; cursor: pointer;">
+                    <input type="radio" name="payment_method" value="gcash">
+                    <span style="margin-left: 6px;">GCash</span>
+                </label>
+                <label style="display: block; margin: 8px 0; cursor: pointer;">
+                    <input type="radio" name="payment_method" value="card">
+                    <span style="margin-left: 6px;">Credit/Debit Card</span>
+                </label>
+                <p class="cart-muted" style="margin-top: 10px;">You can change this during checkout.</p>
+            </div>
+
+            <div class="totals-card">
+                <table>
+                    <tr>
+                        <td>Subtotal</td>
+                        <td id="subtotal">₱0.00</td>
+                    </tr>
+                    <tr>
+                        <td>Tax (15%)</td>
+                        <td id="tax">₱0.00</td>
+                    </tr>
+                    <tr>
+                        <td>Total</td>
+                        <td id="total">₱0.00</td>
+                    </tr>
+                </table>
+                <button class="btn checkout-btn" onclick="checkout()">Proceed to Checkout</button>
+            </div>
         </div>
     </div>
     <!-- ------------------ footer ----------------  -->

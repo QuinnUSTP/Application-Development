@@ -4,6 +4,7 @@
  */
 
 const Product = require('../models/Product');
+const { writeAdminAudit } = require('../utils/adminAudit');
 
 // Get all products with filtering and sorting
 exports.getProducts = async (req, res) => {
@@ -85,11 +86,26 @@ exports.getProduct = async (req, res) => {
 exports.createProduct = async (req, res) => {
   try {
     const product = await Product.create(req.body);
+
+    await writeAdminAudit(req, {
+      action: 'product.create',
+      targetType: 'product',
+      targetId: product?._id,
+      targetName: product?.name,
+      status: 'success',
+    });
+
     res.status(201).json({
       success: true,
       data: product,
     });
   } catch (error) {
+    await writeAdminAudit(req, {
+      action: 'product.create',
+      targetType: 'product',
+      status: 'failure',
+      message: error.message,
+    });
     res.status(400).json({
       success: false,
       message: error.message,
@@ -112,12 +128,28 @@ exports.updateProduct = async (req, res) => {
         message: 'Product not found',
       });
     }
+
+    await writeAdminAudit(req, {
+      action: 'product.update',
+      targetType: 'product',
+      targetId: product?._id || id,
+      targetName: product?.name,
+      status: 'success',
+      meta: { fields: Object.keys(req.body || {}) },
+    });
     
     res.status(200).json({
       success: true,
       data: product,
     });
   } catch (error) {
+    await writeAdminAudit(req, {
+      action: 'product.update',
+      targetType: 'product',
+      targetId: req?.params?.id,
+      status: 'failure',
+      message: error.message,
+    });
     res.status(400).json({
       success: false,
       message: error.message,
@@ -137,12 +169,27 @@ exports.deleteProduct = async (req, res) => {
         message: 'Product not found',
       });
     }
+
+    await writeAdminAudit(req, {
+      action: 'product.delete',
+      targetType: 'product',
+      targetId: product?._id || id,
+      targetName: product?.name,
+      status: 'success',
+    });
     
     res.status(200).json({
       success: true,
       message: 'Product deleted successfully',
     });
   } catch (error) {
+    await writeAdminAudit(req, {
+      action: 'product.delete',
+      targetType: 'product',
+      targetId: req?.params?.id,
+      status: 'failure',
+      message: error.message,
+    });
     res.status(500).json({
       success: false,
       message: error.message,

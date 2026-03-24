@@ -5,9 +5,14 @@
 
 document.addEventListener('DOMContentLoaded', () => {
   apiService?.log?.('Cart page loaded');
-  renderCart();
-  updateCartCount();
+  // Load cart from backend (Option B: requires login)
+  cartManager.load().finally(() => {
+    renderCart();
+    updateCartCount();
+  });
 });
+
+const _qtyTimers = new Map();
 
 /**
  * Render cart items
@@ -19,7 +24,7 @@ function renderCart() {
   
   if (cartItems.length === 0) {
     document.querySelector('.cart-page').innerHTML = `
-      <div style="text-align: center; padding: 40px;">
+      <div class="cart-empty">
         <h2>Your cart is empty</h2>
         <p>Add items to your cart and they will appear here.</p>
         <a href="products.html" class="btn">Continue Shopping</a>
@@ -29,48 +34,104 @@ function renderCart() {
   }
   
   tbody.innerHTML = cartItems
-    .map(item => `
-      <tr>
-        <td>
-          <div class="cart-info">
-            <img src="${item.image}" alt="${item.name}" width="60">
-            <div>
-              <p>${item.name}</p>
-              <small>Price: ${UIUtils.formatPrice(item.price)}</small>
+    .map(item => {
+      const safeName = String(item.name || '');
+      return `
+        <tr>
+          <td>
+            <div class="cart-info">
+              <img src="${item.image}" alt="${safeName}">
+              <div>
+                <p>${safeName}</p>
+                <div class="cart-muted">Price: ${UIUtils.formatPrice(item.price)}</div>
+              </div>
             </div>
-          </div>
-        </td>
-        <td><input type="number" min="1" value="${item.quantity}" onchange="updateQuantity(${item.id}, this.value)"></td>
-        <td>${UIUtils.formatPrice(item.price * item.quantity)}</td>
-        <td>
-          <button onclick="removeFromCart(${item.id})" class="btn" style="background-color: #dc3545; padding: 5px 10px; font-size: 12px;">Remove</button>
-        </td>
-      </tr>
-    `)
+          </td>
+          <td>
+            <input
+              class="qty-input"
+              type="number"
+              min="1"
+              step="1"
+              inputmode="numeric"
+              value="${item.quantity}"
+              oninput="queueQuantityUpdate('${item.productId}', this.value)"
+              onchange="queueQuantityUpdate('${item.productId}', this.value, true)"
+              aria-label="Quantity for ${safeName}"
+            >
+          </td>
+          <td>${UIUtils.formatPrice(item.price * item.quantity)}</td>
+          <td>
+            <button onclick="removeFromCart('${item.productId}')" class="btn btn-danger btn-sm" type="button">Remove</button>
+          </td>
+        </tr>
+      `;
+    })
     .join('');
   
   updateTotals();
 }
 
+// Debounced quantity update (prevents hammering API)
+function queueQuantityUpdate(productId, quantity, immediate = false) {
+  const qty = parseInt(quantity);
+  if (!Number.isFinite(qty) || qty < 1) return;
+
+  const prev = _qtyTimers.get(productId);
+  if (prev) clearTimeout(prev);
+
+  const delay = immediate ? 0 : 250;
+  _qtyTimers.set(
+    productId,
+    setTimeout(() => {
+      _qtyTimers.delete(productId);
+      updateQuantity(productId, qty);
+    }, delay)
+  );
+}
+
 /**
  * Remove item from cart
  */
-function removeFromCart(productId) {
-  cartManager.removeItem(productId);
-  renderCart();
-  updateCartCount();
-  UIUtils.showNotification('Item removed from cart', 'success');
+async function removeFromCart(productId) {
+  try {
+    await cartManager.removeItem(productId);
+    UIUtils.showNotification('Item removed from cart', 'success');
+  } catch (e) {
+    UIUtils.showNotification(e.message || 'Failed to remove item', 'error');
+  }
 }
 
 /**
  * Update item quantity
  */
-function updateQuantity(productId, quantity) {
+async function updateQuantity(productId, quantity) {
   const qty = parseInt(quantity);
-  if (qty > 0) {
-    cartManager.updateQuantity(productId, qty);
-    renderCart();
-    updateCartCount();
+  if (!Number.isFinite(qty) || qty < 1) return;
+  try {
+    await cartManager.setItemQuantity(productId, qty);
+  } catch (e) {
+    UIUtils.showNotification(e.message || 'Failed to update quantity', 'error');
+  }
+}
+
+/**
+ * Clear entire cart
+ */
+async function clearCart() {
+  if (cartManager.getItems().length === 0) {
+    UIUtils.showNotification('Your cart is already empty', 'info');
+    return;
+  }
+
+  const ok = confirm('Clear all items from your cart?');
+  if (!ok) return;
+
+  try {
+    await cartManager.clearCart();
+    UIUtils.showNotification('Cart cleared', 'success');
+  } catch (e) {
+    UIUtils.showNotification(e.message || 'Failed to clear cart', 'error');
   }
 }
 
@@ -96,25 +157,25 @@ async function checkout() {
     return;
   }
   
-  // Check if user is logged in
-  if (!apiService.getStoredToken()) {
+  // Check if user is logged in (cookie auth) - option 3: toast only
+  try {
+    await apiService.requireLogin();
+  } catch (e) {
     UIUtils.showNotification('Please login to proceed with checkout', 'info');
-    setTimeout(() => {
-      window.location.href = 'account.html';
-    }, 1500);
     return;
   }
   
   try {
+    const paymentMethod = (document.querySelector('input[name="payment_method"]:checked')?.value || 'cod');
     const cartItems = cartManager.getItems();
     const subtotal = cartManager.getTotal();
     const tax = subtotal * 0.15;
     const totalAmount = subtotal + tax;
     
-    // Load saved shipping address (from Account page)
+    // Load saved shipping address from backend
     let savedAddress = null;
     try {
-      savedAddress = JSON.parse(localStorage.getItem('redstore_address'));
+      savedAddress = await apiService.getAddress();
     } catch (e) {
       savedAddress = null;
     }
@@ -122,7 +183,7 @@ async function checkout() {
     // Prepare order data
     const orderData = {
       items: cartItems.map(item => ({
-        product: item.cartId || item._id || item.id, // Use MongoDB _id for backend lookup
+        product: item.productId, // Server cart already normalizes productId
         quantity: item.quantity,
         price: item.price,
       })),
@@ -134,7 +195,7 @@ async function checkout() {
         zip: savedAddress?.zip || 'To be entered',
         country: savedAddress?.country || 'To be entered',
       },
-      paymentMethod: 'credit_card',
+      paymentMethod,
     };
     
   apiService?.log?.('📦 Creating order:', orderData);
@@ -153,8 +214,7 @@ async function checkout() {
       }
       
       // Clear cart
-      cartManager.clearCart();
-      updateCartCount();
+  await cartManager.clearCart();
       
       // Show success and redirect to receipt
       UIUtils.showNotification('Order placed successfully!', 'success');

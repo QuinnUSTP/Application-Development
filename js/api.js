@@ -7,7 +7,8 @@
 class APIService {
   constructor(baseUrl = '') {
     this.baseUrl = baseUrl;
-    this.token = this.getStoredToken();
+    // Token is now cookie-based (httpOnly). Keep in-memory token optional for compatibility.
+    this.token = null;
     this.debug = false;
   }
 
@@ -20,21 +21,22 @@ class APIService {
   }
 
   /**
-   * Store token in localStorage
+   * Store token in-memory only.
+   * (Primary auth should be via httpOnly cookie set by the backend.)
    */
   setToken(token) {
     if (token) {
       this.token = token;
-      localStorage.setItem('auth_token', token);
       this.log('✅ Token stored');
     }
   }
 
   /**
-   * Get stored token from localStorage
+   * Legacy helper: returns in-memory token if set.
+   * Prefer cookie auth.
    */
   getStoredToken() {
-    return localStorage.getItem('auth_token') || null;
+    return this.token || null;
   }
 
   /**
@@ -42,8 +44,6 @@ class APIService {
    */
   clearToken() {
     this.token = null;
-    localStorage.removeItem('auth_token');
-    localStorage.removeItem('user_data');
     this.log('✅ Token cleared');
   }
 
@@ -54,9 +54,9 @@ class APIService {
     const headers = {
       'Content-Type': 'application/json',
     };
-    if (this.token) {
-      headers['Authorization'] = `Bearer ${this.token}`;
-    }
+    // Cookie-based auth doesn't need Authorization header.
+    // Keep header support if token is explicitly set (smoke tests / tooling).
+    if (this.token) headers['Authorization'] = `Bearer ${this.token}`;
     return headers;
   }
 
@@ -65,9 +65,6 @@ class APIService {
       throw new Error('Backend not configured');
     }
 
-    // Refresh token (login can happen without reload)
-    this.token = this.getStoredToken();
-
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), timeoutMs);
     try {
@@ -75,13 +72,19 @@ class APIService {
         method,
         headers: headers || this.getAuthHeaders(),
         body,
+        credentials: 'include',
         signal: controller.signal,
       });
 
       const json = await res.json().catch(() => null);
       if (!res.ok) {
-        const msg = json?.message || `Request failed (HTTP ${res.status})`;
-        throw new Error(msg);
+        const msg = json?.message || `Request failed`;
+        const err = new Error(`${msg} (HTTP ${res.status})`);
+        err.status = res.status;
+        if (res.status === 401) err.code = 'UNAUTHENTICATED';
+        if (res.status === 403) err.code = 'FORBIDDEN';
+        err.data = json;
+        throw err;
       }
       return json;
     } catch (e) {
@@ -101,31 +104,17 @@ class APIService {
    */
   async getProducts(filters = {}) {
     try {
-      // Try backend first if available
+      // Backend first if available. Use request() so cookies are always included.
       if (this.baseUrl) {
-        const url = new URL(`${this.baseUrl}/products`);
-        Object.keys(filters).forEach(key => {
-          if (filters[key]) url.searchParams.append(key, filters[key]);
+        const qp = new URLSearchParams();
+        Object.keys(filters).forEach((key) => {
+          if (filters[key]) qp.append(key, filters[key]);
         });
-        
-        this.log('Fetching products from backend:', url.toString());
-        const controller = new AbortController();
-        const timer = setTimeout(() => controller.abort(), 8000);
-        try {
-          const response = await fetch(url.toString(), {
-            method: 'GET',
-            headers: this.getAuthHeaders(),
-            signal: controller.signal,
-          });
 
-          if (response.ok) {
-            const result = await response.json();
-            this.log('Products fetched from backend:', result.data?.length || 0, 'items');
-            return result.data || result;
-          }
-        } finally {
-          clearTimeout(timer);
-        }
+        const qs = qp.toString();
+        const path = `/products${qs ? `?${qs}` : ''}`;
+        const result = await this.request(path, { method: 'GET' });
+        return result.data || result;
       }
 
       // Fallback to JSON file if backend unavailable
@@ -171,6 +160,39 @@ class APIService {
   }
 
   /**
+   * Fetch a single product by id.
+   * Used by product-details.js.
+   * @param {string} productId
+   * @returns {Promise<Object|null>}
+   */
+  async getProduct(productId) {
+    try {
+      if (!productId) throw new Error('Missing product id');
+
+      // Try backend first
+      if (this.baseUrl) {
+        try {
+          const result = await this.request(`/products/${productId}`, { method: 'GET' });
+          const product = result.data || result;
+          return product ? this.normalizeProduct(product) : null;
+        } catch (e) {
+          // Fall back to JSON lookup (useful during backend hiccups)
+          this.log('Backend getProduct failed, falling back to JSON:', e?.message);
+        }
+      }
+
+      const products = await this.loadProductsFromJSON();
+      const found = (products || []).find((p) =>
+        String(p._id || p.id) === String(productId)
+      );
+      return found ? this.normalizeProduct(found) : null;
+    } catch (error) {
+      console.error('Error fetching product:', error);
+      return null;
+    }
+  }
+
+  /**
    * Load products from static JSON file
    * @returns {Promise<Array>}
    */
@@ -184,74 +206,17 @@ class APIService {
     
     for (let path of paths) {
       try {
-        this.log('Trying to load from:', path);
-        const response = await fetch(path);
-        if (response.ok) {
-          const products = await response.json();
-          this.log('✅ Loaded products from:', path);
-          return Array.isArray(products) ? products : [];
-        }
+        const response = await fetch(path, { cache: 'no-store' });
+        if (!response.ok) continue;
+
+        const data = await response.json();
+        return data.products || data;
       } catch (e) {
-        // Try next path
+        // try next path
       }
     }
-    
-    throw new Error('Could not load products from any source');
-  }
 
-  /**
-   * Fetch a single product by ID from backend or JSON
-   * @param {string} productId
-   * @returns {Promise<Object>}
-   */
-  async getProduct(productId) {
-    try {
-      // Try backend first if available
-      if (this.baseUrl) {
-        const controller = new AbortController();
-        const timer = setTimeout(() => controller.abort(), 8000);
-        try {
-          const response = await fetch(`${this.baseUrl}/products/${productId}`, {
-            method: 'GET',
-            headers: this.getAuthHeaders(),
-            signal: controller.signal,
-          });
-
-          if (response.ok) {
-            const result = await response.json();
-            this.log('Product fetched from backend:', result.data?.name || result.name || 'Unknown');
-            return result.data || result;
-          }
-        } finally {
-          clearTimeout(timer);
-        }
-      }
-
-    // Fallback to JSON file
-    this.log('Falling back to JSON file for product ID:', productId);
-      const products = await this.loadProductsFromJSON();
-      
-      // Try multiple ID matching approaches (string, number, MongoDB ObjectId)
-      const product = products.find(p => {
-        const idMatch = 
-          String(p.id) === String(productId) ||  // Both as strings
-          Number(p.id) === Number(productId) ||  // Both as numbers
-          p._id === productId ||                 // MongoDB ObjectId
-          p.id == productId;                     // Loose equality
-        return idMatch;
-      });
-      
-      if (product) {
-        this.log('Product found in JSON:', product.name);
-        return this.normalizeProduct(product);
-      }
-      
-      console.warn('Product not found with ID:', productId);
-      return null;
-    } catch (error) {
-      console.error('Error fetching product:', error);
-      return null;
-    }
+    throw new Error('Unable to load products JSON');
   }
 
   /**
@@ -298,7 +263,6 @@ class APIService {
       // Store token and user data
       if (result.token) {
         this.setToken(result.token);
-        localStorage.setItem('user_data', JSON.stringify(result.user));
       }
       
   this.log('✅ User registered:', result.user);
@@ -325,7 +289,6 @@ class APIService {
       // Store token and user data
       if (result.token) {
         this.setToken(result.token);
-        localStorage.setItem('user_data', JSON.stringify(result.user));
       }
       
   this.log('✅ User logged in:', result.user);
@@ -342,9 +305,7 @@ class APIService {
    */
   async getUserProfile() {
     try {
-      if (!this.baseUrl || !this.token) {
-        throw new Error('Not authenticated');
-      }
+      if (!this.baseUrl) throw new Error('Backend not configured');
 
       const result = await this.request('/users/profile', { method: 'GET' });
       return result.data || result;
@@ -361,9 +322,7 @@ class APIService {
    */
   async updateUserProfile(userData) {
     try {
-      if (!this.baseUrl || !this.token) {
-        throw new Error('Not authenticated');
-      }
+      if (!this.baseUrl) throw new Error('Backend not configured');
 
       const result = await this.request('/users/profile', {
         method: 'PUT',
@@ -384,9 +343,7 @@ class APIService {
    */
   async saveAddress(addressData) {
     try {
-      if (!this.baseUrl || !this.token) {
-        throw new Error('Not authenticated');
-      }
+      if (!this.baseUrl) throw new Error('Backend not configured');
 
       const result = await this.request('/users/address', {
         method: 'POST',
@@ -406,9 +363,7 @@ class APIService {
    */
   async getAddress() {
     try {
-      if (!this.baseUrl || !this.token) {
-        throw new Error('Not authenticated');
-      }
+      if (!this.baseUrl) throw new Error('Backend not configured');
 
       const result = await this.request('/users/address', { method: 'GET' });
       return result.data ?? null;
@@ -425,9 +380,7 @@ class APIService {
    */
   async changePassword(passwordData) {
     try {
-      if (!this.baseUrl || !this.token) {
-        throw new Error('Not authenticated');
-      }
+      if (!this.baseUrl) throw new Error('Backend not configured');
 
       const result = await this.request('/users/change-password', {
         method: 'POST',
@@ -448,9 +401,7 @@ class APIService {
    */
   async createOrder(orderData) {
     try {
-      if (!this.baseUrl || !this.token) {
-        throw new Error('Not authenticated');
-      }
+      if (!this.baseUrl) throw new Error('Backend not configured');
 
       const result = await this.request('/orders', {
         method: 'POST',
@@ -471,9 +422,7 @@ class APIService {
    */
   async getUserOrders() {
     try {
-      if (!this.baseUrl || !this.token) {
-        throw new Error('Not authenticated');
-      }
+      if (!this.baseUrl) throw new Error('Backend not configured');
 
       const result = await this.request('/orders', { method: 'GET' });
       return result?.data || [];
@@ -490,9 +439,7 @@ class APIService {
    */
   async getOrder(orderId) {
     try {
-      if (!this.baseUrl || !this.token) {
-        throw new Error('Not authenticated');
-      }
+      if (!this.baseUrl) throw new Error('Backend not configured');
 
       const result = await this.request(`/orders/${orderId}`, { method: 'GET' });
       return result.data || result;
@@ -501,14 +448,52 @@ class APIService {
       return null;
     }
   }
+
+  /**
+   * Cookie-session truth source: returns the logged-in user or null.
+   * Never relies on localStorage.
+   */
+  async getSessionUser() {
+    try {
+      const me = await this.getUserProfile();
+      return me || null;
+    } catch (e) {
+      return null;
+    }
+  }
+
+  /**
+   * Require a cookie-session login.
+   * If not logged in, throws an UNAUTHENTICATED error.
+   */
+  async requireLogin() {
+    const me = await this.getUserProfile();
+    if (!me) {
+      const err = new Error('Please login to continue (HTTP 401)');
+      err.status = 401;
+      err.code = 'UNAUTHENTICATED';
+      throw err;
+    }
+    return me;
+  }
 }
 
 // Create and export a singleton instance
-const backendUrl = 'http://localhost:5000/api';
+// IMPORTANT: use a single consistent backend origin for cookie auth.
+// If you mix http://localhost and http://127.0.0.1, cookies won't be shared.
+const backendUrl = 'http://127.0.0.1:5000/api';
 const apiService = new APIService(backendUrl);
 
-// Optional debug: enable verbose API logs via localStorage key.
-// localStorage.setItem('redstore_debug', '1')
+// Export for browser globals (non-module scripts)
 try {
-  apiService.setDebug(localStorage.getItem('redstore_debug') === '1');
+  window.apiService = apiService;
+  window.APIService = APIService;
+} catch {}
+
+// Optional debug: enable verbose API logs via URL param (?debug=1)
+// or by setting: window.REDSTORE_DEBUG = true
+try {
+  const qp = new URLSearchParams(window.location.search);
+  const debug = (window.REDSTORE_DEBUG === true) || (qp.get('debug') === '1');
+  apiService.setDebug(debug);
 } catch {}
