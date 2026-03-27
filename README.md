@@ -12,12 +12,12 @@ Key implementation details in this repo:
 
 Important: because auth is cookie-based, you **must open the frontend via http://localhost** (not `file:///`). Use the provided PowerShell start scripts.
 
-# requirements.txt (project-style) - generated from package.json files
-# This project is primarily Node.js + Express + MongoDB (backend in ./backend).
-# The file lists top-level Node dependencies and devDependencies in a Python-like
-# `package==version` format so it's easy to read or keep alongside other projects.
+## requirements.txt (project-style) - generated from package.json files
+## This project is primarily Node.js + Express + MongoDB (backend in ./backend).
+## The file lists top-level Node dependencies and devDependencies in a Python-like
+## `package==version` format so it's easy to read or keep alongside other projects.
 
-# Backend dependencies (from backend/package.json)
+## Backend dependencies (from backend/package.json)
 bcryptjs==2.4.3
 cookie-parser==1.4.6
 cors==2.8.5
@@ -28,19 +28,19 @@ jsonwebtoken==9.0.0
 mongodb==7.1.0
 mongoose==7.0.0
 
-# Backend devDependencies
+## Backend devDependencies
 jest==29.0.0
 nodemon==2.0.20
 
-# Notes
-# - To install Node dependencies: run `npm install` in the project root and `npm install` inside `backend/`.
-# - This is not a Python virtualenv requirements file; use it as a helpful manifest for tooling or for cross-team clarity.
-# - MongoDB is required for running the backend server. This project expects a running MongoDB instance (or URI in .env).
-# - If you want a machine-readable JSON list, consider `npm ls --prod --json` or `npm list --depth=0 --json`.
+## Notes
+ - To install Node dependencies: run `npm install` in the project root and `npm install` inside `backend/`.
+ - This is not a Python virtualenv requirements file; use it as a helpful manifest for tooling or for cross-team clarity.
+ - MongoDB is required for running the backend server. This project expects a running MongoDB instance (or URI in .env).
+ - If you want a machine-readable JSON list, consider `npm ls --prod --json` or `npm list --depth=0 --json`.
 
-# Optional: Node and npm versions (if known) — you can add your local versions here:
-# Node==<your-node-version>
-# npm==<your-npm-version>
+## Optional: Node and npm versions (if known) — you can add your local versions here:
+ Node==<your-node-version>
+ npm==<your-npm-version>
 
 ## 🏗️ Project Structure
 
