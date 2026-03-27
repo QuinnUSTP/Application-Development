@@ -39,12 +39,6 @@ Important: because auth is cookie-based, you **must open the frontend via http:/
  - MongoDB is required for running the backend server. This project expects a running MongoDB instance (or URI in .env).
  - If you want a machine-readable JSON list, consider `npm ls --prod --json` or `npm list --depth=0 --json`.
 
-## Optional: Node and npm versions (if known) — you can add your local versions here:
-```
-Node==<your-node-version>
-npm==<your-npm-version>
-```
-
 ## 🏗️ Project Structure
 
 ```
