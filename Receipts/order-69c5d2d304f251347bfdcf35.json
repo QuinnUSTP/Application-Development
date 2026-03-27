@@ -1,0 +1,30 @@
+{
+  "kind": "redstore-receipt",
+  "version": 1,
+  "orderId": "69c5d2d304f251347bfdcf35",
+  "user": {
+    "id": "69c5d28c04f251347bfdce69",
+    "username": "nard",
+    "role": "user"
+  },
+  "createdAt": "2026-03-27T00:44:03.666Z",
+  "updatedAt": "2026-03-27T00:44:03.666Z",
+  "status": "pending",
+  "paymentMethod": "gcash",
+  "totalAmount": 97.75,
+  "shippingAddress": {
+    "street": "Zone 9b Mambuaya",
+    "city": "Cagayan de oro",
+    "state": "Misamis Oriental",
+    "zip": "9000",
+    "country": "Philippines"
+  },
+  "items": [
+    {
+      "product": "69c17cf43b803692334a1ff5",
+      "name": "Roadster Watch",
+      "quantity": 1,
+      "price": 85
+    }
+  ]
+}
