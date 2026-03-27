@@ -12,10 +12,10 @@ Key implementation details in this repo:
 
 Important: because auth is cookie-based, you **must open the frontend via http://localhost** (not `file:///`). Use the provided PowerShell start scripts.
 
-## requirements.txt (project-style) - generated from package.json files
-## This project is primarily Node.js + Express + MongoDB (backend in ./backend).
-## The file lists top-level Node dependencies and devDependencies in a Python-like
-## `package==version` format so it's easy to read or keep alongside other projects.
+ requirements.txt (project-style) - generated from package.json files
+ This project is primarily Node.js + Express + MongoDB (backend in ./backend).
+ The file lists top-level Node dependencies and devDependencies in a Python-like
+ `package==version` format so it's easy to read or keep alongside other projects.
 
 ## Backend dependencies (from backend/package.json)
 bcryptjs==2.4.3
