@@ -25,7 +25,7 @@ if (-not (Test-Path $mongodPath)) {
 }
 
 if (Test-Path $mongodPath) {
-    $mongoProcess = Start-Process -FilePath $mongodPath -ArgumentList "--dbpath `"$mongoDataPath`"" -PassThru -WindowStyle Minimized
+    Start-Process -FilePath $mongodPath -ArgumentList "--dbpath `"$mongoDataPath`"" -PassThru -WindowStyle Minimized | Out-Null
     Start-Sleep -Seconds 2
 } else {
     Write-Host "⚠️ mongod.exe not found at S:\mongodb\bin\mongod.exe and not found on PATH." -ForegroundColor Yellow

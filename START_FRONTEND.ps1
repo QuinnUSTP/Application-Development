@@ -24,15 +24,41 @@ function Start-WithNode {
   if (-not $node) { return $false }
 
   $httpServer = Get-Command http-server -ErrorAction SilentlyContinue
-  if (-not $httpServer) {
-    Write-Host "http-server not found. Installing globally (npm i -g http-server)..." -ForegroundColor Yellow
-    npm i -g http-server | Out-Host
+  if ($httpServer) {
+    # Use resolved command path directly (safer than relying on PATH refresh behavior).
+    & $httpServer.Source -p $port -c-1
+    return $true
   }
 
-  # http-server is a long-running process. If it starts successfully it will
-  # block this script until you stop it (Ctrl+C). We should not "exit 1" after.
-  http-server -p $port -c-1
-  return $true
+  $npx = Get-Command npx -ErrorAction SilentlyContinue
+  if ($npx) {
+    Write-Host "http-server not found on PATH. Starting via npx..." -ForegroundColor Yellow
+    & $npx.Source --yes http-server -p $port -c-1
+    return $true
+  }
+
+  Write-Host "http-server and npx not found. Installing globally (npm i -g http-server)..." -ForegroundColor Yellow
+  npm i -g http-server | Out-Host
+
+  # npm global bin on Windows commonly lands under %APPDATA%\npm
+  $npmPrefix = (npm config get prefix 2>$null | Out-String).Trim()
+  if ($npmPrefix) {
+    $httpServerCmd = Join-Path $npmPrefix 'http-server.cmd'
+    if (Test-Path $httpServerCmd) {
+      & $httpServerCmd -p $port -c-1
+      return $true
+    }
+  }
+
+  # Last try: command discovery after install
+  $httpServerAfterInstall = Get-Command http-server -ErrorAction SilentlyContinue
+  if ($httpServerAfterInstall) {
+    & $httpServerAfterInstall.Source -p $port -c-1
+    return $true
+  }
+
+  Write-Host "Unable to run http-server after install. Try reopening PowerShell or run: npx --yes http-server -p $port -c-1" -ForegroundColor Red
+  return $false
 }
 
 function Start-WithPython {
