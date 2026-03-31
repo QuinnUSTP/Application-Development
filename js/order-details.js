@@ -5,22 +5,15 @@
   }
 
   async function getArchivedReceipt(orderId) {
-    if (!apiService?.getStoredToken?.()) {
-      throw new Error('Not authenticated');
-    }
+    // Cookie-auth app: do not rely on in-memory token checks.
+    // requireLogin() verifies /users/profile using credentials: 'include'.
+    await apiService.requireLogin();
 
-    // Refresh token in memory
-    apiService.setToken(apiService.getStoredToken());
-    const res = await fetch(`${apiService.baseUrl}/orders/${orderId}/receipt`, {
+    const json = await apiService.request(`/orders/${orderId}/receipt`, {
       method: 'GET',
-      headers: apiService.getAuthHeaders(),
     });
 
-    const json = await res.json().catch(() => null);
-    if (!res.ok) {
-      throw new Error(json?.message || `Failed to fetch receipt (HTTP ${res.status})`);
-    }
-    return json?.data;
+    return json?.data || null;
   }
 
   function formatAddress(address) {
@@ -75,7 +68,7 @@
 
           <div style="margin-top: 18px;">
             <a class="btn" href="account.html" style="display:inline-block;">Back to Account</a>
-            <a class="btn" href="receipt.html?id=${encodeURIComponent(receipt?.orderId || '')}" style="display:inline-block; margin-left: 10px;">Open Receipt</a>
+            <a class="btn" href="receipt.html?orderId=${encodeURIComponent(receipt?.orderId || '')}" style="display:inline-block; margin-left: 10px;">Open Receipt</a>
           </div>
         </div>
 
@@ -104,23 +97,23 @@
       return;
     }
 
-    if (!apiService?.getStoredToken?.()) {
-      root.innerHTML = `
-        <div class="empty-state">
-          <p>You need to login to view this order.</p>
-          <a href="account.html" class="btn" style="margin-top: 18px; display:inline-block;">Go to Account</a>
-        </div>
-      `;
-      return;
-    }
-
     try {
       const receipt = await getArchivedReceipt(orderId);
       renderReceipt(root, receipt);
     } catch (e) {
+      if (e?.status === 401 || e?.code === 'UNAUTHENTICATED') {
+        root.innerHTML = `
+          <div class="empty-state">
+            <p>You need to login to view this order.</p>
+            <a href="account.html" class="btn" style="margin-top: 18px; display:inline-block;">Go to Account</a>
+          </div>
+        `;
+        return;
+      }
+
       // Fallback: show the existing receipt page which loads live order data
       console.warn('Falling back to receipt.html:', e?.message);
-      window.location.href = `receipt.html?id=${encodeURIComponent(orderId)}`;
+      window.location.href = `receipt.html?orderId=${encodeURIComponent(orderId)}`;
     }
   }
 

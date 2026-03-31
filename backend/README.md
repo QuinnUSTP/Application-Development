@@ -60,7 +60,38 @@ npm run seed
 
 Then restart the backend (`npm run dev`) if it was already running.
 
-## 📡 API Endpoints
+## � Database Viewing (XAMPP-like workflow)
+
+If you want to visually inspect DB collections (like phpMyAdmin/XAMPP style), use one of these:
+
+### Option A: Near real-time terminal watcher (built-in)
+
+```bash
+npm run db:watch
+```
+
+This prints live-updating collection counts and recent order/user snapshots every ~2 seconds.
+
+Optional interval override:
+
+```bash
+DB_WATCH_INTERVAL_MS=1000 npm run db:watch
+```
+
+### Option B: MongoDB Compass GUI (recommended for browsing documents)
+
+1. Install MongoDB Compass.
+2. Connect using your project URI (example):
+
+```
+mongodb://localhost:27017/redstore
+```
+
+3. Open collections such as `products`, `orders`, `users`, `carts`, etc.
+
+This gives you a full visual database browser similar to XAMPP tooling.
+
+## �📡 API Endpoints
 
 ### Health Check
 ```

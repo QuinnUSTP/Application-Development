@@ -83,6 +83,7 @@ class AdminManager {
               <h2 style="margin:0;">Operations Overview</h2>
               <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
                 <button class="btn btn-secondary" onclick="AdminManager.refreshMetrics()">🔄 Refresh</button>
+                <button class="btn btn-secondary" onclick="AdminManager.openDbSchemaViewer()">🗂️ DB Schema</button>
                 <label style="display:flex;gap:8px;align-items:center;cursor:pointer;user-select:none;">
                   <input type="checkbox" id="adminAutoRefresh" onchange="AdminManager.toggleAutoRefresh(this.checked)">
                   <span>Auto refresh (30s)</span>
@@ -543,6 +544,10 @@ class AdminManager {
       // Do an immediate refresh so it feels responsive
       this.refreshMetrics();
     }
+  }
+
+  static openDbSchemaViewer() {
+    window.open('db-schema.html', '_blank');
   }
 
   /**

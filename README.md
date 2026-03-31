@@ -150,6 +150,22 @@ If your backend is already running, you can just serve the frontend:
 ./START_FRONTEND.ps1
 ```
 
+### 3) Open DB Schema Viewer (PK/FK/relationships/attributes)
+
+After backend + frontend are running, open:
+
+- `http://127.0.0.1:5500/db-schema.html`
+
+This page reads `/api/admin/schema` and shows:
+
+- Primary keys (PK)
+- Foreign keys (FK)
+- Relationships between collections
+- Field attributes (`required`, `unique`, `default`, `enum`, `type`)
+- Collection document counts (auto-refresh every ~3s)
+
+> Note: You must be logged in as an **admin** user.
+
 ### ⚠️ Do NOT open via file://
 
 Avoid double-clicking `index.html` (which opens `file:///...`). Cookie-based login won’t persist across pages on `file:///`.

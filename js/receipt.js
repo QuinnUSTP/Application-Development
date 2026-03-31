@@ -16,7 +16,8 @@ async function loadReceipt() {
   try {
     // Get order ID from URL parameter
     const urlParams = new URLSearchParams(window.location.search);
-    const orderId = urlParams.get('orderId');
+  // Accept both `orderId` and legacy `id` params.
+  const orderId = urlParams.get('orderId') || urlParams.get('id');
     
     if (!orderId) {
       showError('No order ID provided');

@@ -8,7 +8,8 @@
     "dev": "nodemon server.js",
     "test": "jest --passWithNoTests",
     "smoke": "node scripts/smoke-all.js",
-    "seed": "node seed.js"
+    "seed": "node seed.js",
+    "db:watch": "node scripts/db-watch.js"
   },
   "dependencies": {
     "bcryptjs": "^2.4.3",
