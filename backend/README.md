@@ -49,6 +49,17 @@ npm start
 
 Server runs at: `http://localhost:5000`
 
+### 5. Seed Sample Data (Required on fresh databases)
+
+On a new machine/database, the `products` collection starts empty.
+Populate sample categories and products with:
+
+```bash
+npm run seed
+```
+
+Then restart the backend (`npm run dev`) if it was already running.
+
 ## 📡 API Endpoints
 
 ### Health Check

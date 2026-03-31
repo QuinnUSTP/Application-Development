@@ -114,49 +114,74 @@ class APIService {
         const qs = qp.toString();
         const path = `/products${qs ? `?${qs}` : ''}`;
         const result = await this.request(path, { method: 'GET' });
-        return result.data || result;
+        const backendProducts = Array.isArray(result?.data)
+          ? result.data
+          : (Array.isArray(result) ? result : []);
+
+        if (backendProducts.length > 0) {
+          return backendProducts;
+        }
+
+        // Some environments have a running backend + empty DB.
+        // Keep the storefront usable by falling back to bundled JSON products.
+        this.log('Backend returned 0 products; falling back to local JSON data.');
       }
 
-      // Fallback to JSON file if backend unavailable
-  this.log('Backend unavailable, loading from JSON file...');
+      // Fallback to JSON file if backend unavailable or empty
+      this.log('Loading products from JSON fallback...');
       const products = await this.loadProductsFromJSON();
-      
-      // Apply filters to JSON data
-      let filtered = products;
-      if (filters.category) {
-        filtered = filtered.filter(p => p.category === filters.category);
-      }
-      
-      // Apply sorting
-      if (filters.sortBy) {
-        switch(filters.sortBy) {
-          case 'price_asc':
-            filtered.sort((a, b) => a.price - b.price);
-            break;
-          case 'price_desc':
-            filtered.sort((a, b) => b.price - a.price);
-            break;
-          case 'rating':
-            filtered.sort((a, b) => b.rating - a.rating);
-            break;
-          case 'newest':
-            filtered.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
-            break;
-        }
-      }
-      
+
+      const filtered = this.applyProductFilters(products, filters);
       this.log('Loaded', filtered.length, 'products from JSON');
       return filtered;
     } catch (error) {
       console.error('Error fetching products:', error);
       // Final fallback: load from JSON silently
       try {
-        return await this.loadProductsFromJSON();
+        const products = await this.loadProductsFromJSON();
+        return this.applyProductFilters(products, filters);
       } catch (e) {
         console.error('Failed to load products:', e);
         return [];
       }
     }
+  }
+
+  /**
+   * Apply frontend filtering/sorting/pagination to a product list.
+   * Used for JSON fallback when backend is unavailable or DB is empty.
+   */
+  applyProductFilters(products = [], filters = {}) {
+    let filtered = Array.isArray(products) ? [...products] : [];
+
+    if (filters.category) {
+      filtered = filtered.filter((p) => p.category === filters.category);
+    }
+
+    switch (filters.sortBy) {
+      case 'price_asc':
+        filtered.sort((a, b) => Number(a.price || 0) - Number(b.price || 0));
+        break;
+      case 'price_desc':
+        filtered.sort((a, b) => Number(b.price || 0) - Number(a.price || 0));
+        break;
+      case 'rating':
+        filtered.sort((a, b) => Number(b.rating || 0) - Number(a.rating || 0));
+        break;
+      case 'newest':
+        filtered.sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0));
+        break;
+      default:
+        break;
+    }
+
+    const hasPaging = filters.page || filters.limit;
+    if (!hasPaging) return filtered;
+
+    const page = Math.max(1, parseInt(filters.page, 10) || 1);
+    const limit = Math.max(1, parseInt(filters.limit, 10) || filtered.length || 1);
+    const start = (page - 1) * limit;
+    return filtered.slice(start, start + limit);
   }
 
   /**
